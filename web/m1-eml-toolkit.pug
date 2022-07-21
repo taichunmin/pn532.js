@@ -1,0 +1,310 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'Mifare 1k EML 工具'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}m1-eml-toolkit.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .letter-spacing-n1px
+        letter-spacing: -1px
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h3.mb-3.text-center= title
+    .form-group
+      label 選擇 PN532 的連線方式
+      select.form-control.form-control-sm(v-model="h.adapter")
+        option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+        option(value="usb") 透過 USB 連線 (支援 PC)
+    .form-group
+      label.mb-1.letter-spacing-n1px Chinese Magic Card gen1a (UID)
+      .row.mx-n1
+        .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnReadGen1a") 讀取資料
+        .col.px-1: button.btn.btn-block.btn-primary(type="button", @click="btnVerifyGen1a") 比對資料
+        .col.px-1: button.btn.btn-block.btn-danger(type="button", @click="btnWriteGen1a") 寫入資料
+    .form-group
+      label.mb-1.letter-spacing-n1px Mifare Classic 1k and Chinese Magic Card gen2 (CUID, FUID, UFUID)
+      .row.mx-n1
+        .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnReadGen2") 讀取資料
+        .col.px-1: button.btn.btn-block.btn-primary(type="button", @click="btnVerifyGen2") 比對資料
+        .col.px-1: button.btn.btn-block.btn-danger(type="button", @click="btnWriteGen2") 寫入資料
+    .form-group
+      label.mb-1 Common
+      button.btn.mt-1.btn-block.btn-primary(@click="btnEditEml") 編輯卡片資料
+      button.btn.mt-1.btn-block.btn-info(@click="btnEditMfkeys") 編輯卡片金鑰
+      button.btn.mt-1.btn-block.btn-outline-dark(@click="btnLoadKeysFromEml") 從卡片資料提取金鑰
+      button.btn.mt-1.btn-block.btn-outline-warning(@click="btnSetBlankEml") 重設為空白卡片資料
+    .modal.fade(data-backdrop="static", data-keyboard="false", tabindex="-1", ref="exportimport")
+      .modal-dialog.modal-dialog-centered.modal-xl.align-items-stretch
+        .modal-content
+          .modal-body.d-flex.flex-column
+            textarea.form-control.form-control-sm.flex-fill(v-model="exportimport.text")
+            small.text-muted.form-text 請點下方「複製」按鈕複製資料，或貼上新資料並點下方「匯入」按鈕。
+          .modal-footer
+            button.btn.btn-outline-success(type="button", @click="btnCopy(exportimport.text, $refs.exportimport)") 複製
+            button.btn.btn-secondary(type="button", @click="exportimport?.cb?.()") 取消
+            button.btn.btn-primary(type="button", @click="exportimport?.cb?.(exportimport.text)") 匯入
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+    //- pn532usb.use(new Pn532LoggerRxTx())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+    //- pn532ble.use(new Pn532LoggerRxTx())
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        exportimport: { text: '', cb: null },
+        h: {
+          adapter: 'ble',
+          eml: '',
+          mfkeys: '',
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+        card () {
+          try {
+            const card = Packet.fromHex(this.h.eml)
+            if (!Packet.isLen(card, 1024)) throw new TypeError('invalid M1 card')
+            return card
+          } catch (err) {
+            return null
+          }
+        },
+        cardKeys () {
+          const keys = []
+          if (!this.card) return keys
+          for (let i = 0; i < 16; i++) {
+            keys.push(this.card.subarray(i * 64 + 48, i * 64 + 54))
+            keys.push(this.card.subarray(i * 64 + 58, i * 64 + 64))
+          }
+          return this.pn532.$hf14a.mfKeysUniq(keys)
+        },
+        keys () {
+          const keys = Packet.fromHex(this.h.mfkeys)
+          return keys.length % 6 ? null : this.pn532.$hf14a.mfKeysUniq(keys.chunk(6))
+        },
+      },
+      methods: {
+        async btnReadGen1a () {
+          try {
+            this.showLoading('請稍候', '正在讀取 UID 卡')
+            const { data, success } = await this.pn532.$hf14a.mfReadCardGen1a()
+            this.setCard(data)
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            await Swal.fire({ icon: 'success', title: '讀取成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '讀取失敗', text: err.message })
+          }
+        },
+        async btnVerifyGen1a () {
+          try {
+            this.showLoading('請稍候', '正在讀取 UID 卡')
+            const { data: other, success } = await this.pn532.$hf14a.mfReadCardGen1a()
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            console.log({ card: this.card, other })
+            if (!other.isEqual(this.card)) throw new Error('卡片資料不同')
+            await Swal.fire({ icon: 'success', title: '卡片資料相同' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '比對失敗', text: err.message })
+          }
+        },
+        async btnWriteGen1a () {
+          try {
+            if (!Packet.isLen(this.card, 1024)) throw new TypeError('EML 資料有誤')
+            if (!await this.confirm('即將覆蓋 UID 卡資料，是否繼續？', '繼續', '取消')) return
+            this.showLoading('請稍候', '正在寫入 UID 卡')
+            const { success } = await this.pn532.$hf14a.mfWriteCardGen1a({ data: this.card })
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 寫入失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            await Swal.fire({ icon: 'success', title: '寫入成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
+          }
+        },
+        async btnReadGen2 () {
+          try {
+            this.showLoading('請稍候', '正在讀取 CUID 卡')
+            const { success: { read: success }, data } = await this.pn532.$hf14a.mfReadCardByKeys({ keys: this.keys })
+            this.setCard(data)
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            await Swal.fire({ icon: 'success', title: '讀取成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '讀取失敗', text: err.message })
+          }
+        },
+        async btnVerifyGen2 () {
+          try {
+            this.showLoading('請稍候', '正在讀取 CUID 卡')
+            const { data: other, success: { read: success } } = await this.pn532.$hf14a.mfReadCardByKeys({ keys: this.keys })
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            console.log({ card: this.card, other })
+            if (!other.isEqual(this.card)) throw new Error('卡片資料不同')
+            await Swal.fire({ icon: 'success', title: '卡片資料相同' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '比對失敗', text: err.message })
+          }
+        },
+        async btnWriteGen2 () {
+          try {
+            if (!this.card) throw new TypeError('EML 資料有誤')
+            if (!await this.confirm('即將覆蓋 CUID 卡資料，是否繼續？', '繼續', '取消')) return
+            this.showLoading('請稍候', '正在寫入 CUID 卡')
+            const { success } = await this.pn532.$hf14a.mfWriteCardByKeys({ keys: this.keys, data: this.card })
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 寫入失敗`, text: `失敗的 block: ${failed.join()}` })
+            }
+            await Swal.fire({ icon: 'success', title: '寫入成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
+          }
+        },
+        async btnLoadKeysFromEml () {
+          try {
+            this.setKeys([
+              ...this.cardKeys,
+              ...Packet.fromHex('FFFFFFFFFFFF 000000000000 A0A1A2A3A4A5 D3F7D3F7D3F7').chunk(6),
+            ])
+            await Swal.fire({ icon: 'success', title: '提取成功', text: `總共提取了 ${this.keys.length} 筆金鑰` })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '發生錯誤', text: err.message })
+          }
+        },
+        async btnSetBlankEml () {
+          if (!await this.confirm('即將設定成空白 EML，是否繼續？', '繼續', '取消')) return
+          const eml = new Packet(1024)
+          eml.set(Packet.fromHex('0102030404080400000000000000BEAF'), 0)
+          const keyBlock = Packet.fromHex('FFFFFFFFFFFF08778F00FFFFFFFFFFFF')
+          for (let i = 0; i < 16; i++) eml.set(keyBlock, i * 64 + 48)
+          this.setCard(eml)
+        },
+        async btnEditEml () {
+          const $ref = window.jQuery(this.$refs.exportimport)
+          const newVal = await new Promise(resolve => {
+            this.$set(this, 'exportimport', {
+              cb: resolve,
+              text: this.h.eml,
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          if (!_.isNil(newVal)) this.$set(this.h, 'eml', newVal)
+          $ref.modal('hide')
+          this.$set(this.exportimport, 'cb', null)
+        },
+        async btnEditMfkeys () {
+          const $ref = window.jQuery(this.$refs.exportimport)
+          const newVal = await new Promise(resolve => {
+            this.$set(this, 'exportimport', {
+              cb: resolve,
+              text: this.h.mfkeys,
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          if (!_.isNil(newVal)) this.$set(this.h, 'mfkeys', newVal)
+          $ref.modal('hide')
+          this.$set(this.exportimport, 'cb', null)
+        },
+        setCard (card) {
+          if (!Packet.isLen(card, 1024)) throw new TypeError('invalid card')
+          this.$set(this.h, 'eml', _.map(card.chunk(16), 'hex').join('\n'))
+        },
+        setKeys (keys) {
+          keys = _.map(this.pn532.$hf14a.mfKeysUniq(keys), 'hex').join('\n')
+          this.$set(this.h, 'mfkeys', keys)
+        },
+        async btnCopy (text, container = null) {
+          if (!container) container = document.body
+          const dom = document.createElement('textarea')
+          dom.value = text
+          container.appendChild(dom)
+          dom.select()
+          dom.setSelectionRange(0, 1e6) // For mobile devices
+          document.execCommand('copy')
+          container.removeChild(dom)
+          await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        async confirm (text, btnConfirm, btnCancel) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText: btnCancel,
+            confirmButtonColor: '#d33',
+            confirmButtonText: btnConfirm,
+            focusCancel: true,
+            icon: 'warning',
+            showCancelButton: true,
+            text,
+          }
+          return (await Swal.fire(args))?.isConfirmed
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })

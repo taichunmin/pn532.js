@@ -104,5 +104,21 @@ dist
 .tern-port
 
 # mkcert
-/mkcert/**
-!/mkcert/.gitkeep
+/mkcert
+
+# extra ignore file for npm
+*.env
+*.test.js
+*.yml
+/.editorconfig
+/.eslintignore
+/.eslintrc.json
+/.gitattributes
+/.github
+/*.js
+/dist/*.html
+/dist/*.xml
+/dist/docs
+/jest.config.js
+/layout
+/web

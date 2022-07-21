@@ -1,0 +1,50 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'Test Pn532'
+
+block style
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+
+block content
+  #app.my-3.container(v-cloak)
+    h2.mb-3.text-center= title
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx,
+      Pn532WebbleAdapter,
+    } = window
+    const pn532 = new Pn532()
+    pn532.use(new Pn532WebbleAdapter())
+    pn532.use(new Pn532Hf14a())
+    pn532.use(new Pn532LoggerRxTx())
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        h: {},
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+
+        await this.init()
+      },
+      methods: {
+        async init () {},
+      },
+    })

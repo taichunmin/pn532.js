@@ -1,0 +1,45 @@
+toc:
+  - name: Getting Started
+    description: |
+      See [README.md](https://github.com/taichunmin/pn532.js#readme) for getting started tutorial.
+  - name: Core
+    children:
+      - Pn532
+      - Packet
+  - name: Plugin
+    children:
+      - Pn532Hf14a
+      - Pn532LoggerRxTx
+      - Pn532WebbleAdapter
+      - Pn532WebserialAdapter
+  - name: Example
+    children:
+      - name: M1 UID4B Writer
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/m1-uid4b-writer.html>
+
+          This tools can control PN532 via Web Bluetooth or Web Serial to write 4 bytes UID to Chinese Magic Card (support UID and CUID).
+      - name: M1 EML Toolkit
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/m1-eml-toolkit.html>
+
+          This tools can control PN532 via Web Bluetooth or Web Serial to read or write data from Mifare Card (support UID and CUID).
+  - name: other
+    children:
+      - Pn532Frame
+      - Pn532FrameAck
+      - Pn532FrameNormal
+      - Pn532FrameExtended
+  - name: modules
+    children:
+      - pn532.js/Packet
+      - pn532.js/plugin/Hf14a
+      - pn532.js/plugin/LoggerRxTx
+      - pn532.js/plugin/WebbleAdapter
+      - pn532.js/plugin/WebserialAdapter
+      - pn532.js/pn532
+      - pn532.js/utils
+  - name: typedef
+    children:
+      - Pn532Hf14a~MifareTarget
+      - Pn532~Gpio

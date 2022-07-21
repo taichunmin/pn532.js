@@ -1,0 +1,410 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'M1 UID4B 寫卡工具'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}m1-uid4b-writer.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      li.nav-item > button.nav-link
+        color: #007bff
+        background-color: transparent
+      .input-group-prepend .input-group-text
+        letter-spacing: -1px
+        min-width: 80px
+      .shield
+        display: -ms-inline-flexbox
+        display: inline-flex
+        font-size: 75%
+        letter-spacing: -.5px
+        line-height: 1
+        position: relative
+        vertical-align: middle
+        white-space: nowrap
+        .shield-name, .shield-value
+          padding: .25em .4em
+        .shield-name
+          align-items: center
+          border-bottom-left-radius: .25rem
+          border-top-left-radius: .25rem
+          display: -ms-inline-flexbox
+          display: inline-flex
+        .shield-value
+          border-bottom-right-radius: .25rem
+          border-top-right-radius: .25rem
+          border: 1px solid #ccc
+          border-left: 0
+      .bg-00A98F
+        background-color: #00A98F
+      .bg-B02CCE
+        background-color: #B02CCE
+      .bg-004680
+        background-color: #004680
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h2.mb-3.text-center= title
+    .card.my-2
+      .card-header
+        ul.nav.nav-tabs.card-header-tabs
+          li.nav-item: button.btn-sm.nav-link(type="button", @click="h.page = 'writeCard'", :class="{active: (h.page === 'writeCard')}") #[i.fa.fa-fw.fa-id-card-o] 寫卡
+          li.nav-item: button.btn-sm.nav-link(type="button", @click="h.page = 'setting'", :class="{active: (h.page === 'setting')}") #[i.fa.fa-fw.fa-cogs] 設定
+      .card-body.pb-3(v-if="h.page === 'writeCard'")
+        h5.card-title 寫入 UID/CUID 卡片
+        h6.card-subtitle.mb-2.text-muted 本工具可以控制 PN532 硬體來寫入 UID/CUID 卡片的 Block 0，如果您的門禁系統只讀卡號，就可以透過本工具來拷貝。目前僅支援在 Windows、Ubuntu、macOS 或 Android 8 以上的 Chrome 中使用，硬體需要自備。
+        hr
+        .form-group
+          label 選擇 PN532 的連線方式
+          select.form-control.form-control-sm(v-model="h.adapter")
+            option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+            option(value="usb") 透過 USB 連線 (支援 PC)
+        .form-group
+          label 卡片資料
+          .input-group.input-group-sm.mb-2
+            .input-group-prepend: span.input-group-text.justify-content-center UID
+            input.form-control(v-model="h.card.uid", required, pattern="[\\dA-Fa-f]{8}")
+            .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.card.uid = ''") 清空
+          .input-group.input-group-sm.mb-2
+            .input-group-prepend: span.input-group-text.justify-content-center SAK
+            input.form-control(v-model="h.card.sak", required, pattern="[\\dA-Fa-f]{2}")
+            .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.card.sak = ''") 清空
+          .input-group.input-group-sm.mb-2
+            .input-group-prepend: span.input-group-text.justify-content-center ATQA
+            input.form-control(v-model="h.card.atqa", required, pattern="[\\dA-Fa-f]{4}")
+            .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.card.atqa = ''") 清空
+          small.form-text.text-muted(v-if="cardName") 此卡片已儲存為「#[code {{ cardName }}]」。
+          small.form-text.text-muted(v-else) 此卡片尚未儲存，請點下方「儲存卡片」輸入卡片名稱以便下次使用。
+        .row.mx-n1.mt-2
+          .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnReadCard") #[i.fa.fa-fw.fa-sign-out] 讀取卡片
+          .col.px-1: button.btn.btn-block.btn-warning(type="button", @click="btnSetUid") #[i.fa.fa-fw.fa-sign-in] 寫入卡片
+        .row.mx-n1.mt-2
+          .col.px-1: button.btn.btn-block.btn-outline-primary(type="button", @click="btnSaveCard") #[i.fa.fa-fw.fa-download] 儲存卡片
+          .col.px-1: button.btn.btn-block.btn-outline-success(type="button", @click="btnPickCard", :disabled="!h.cards.length") #[i.fa.fa-fw.fa-upload] 選擇卡片
+      template(v-if="h.page === 'setting'")
+        .card-body
+          .card-title.d-flex.align-items-center
+            h5.mb-0 卡片清單 (CSV)
+            span.ml-2.badge.badge-pill.badge-primary {{ this.cards.length }}
+          h6.card-subtitle.mb-2.text-muted 在此提供您以 CSV 格式編輯已儲存的卡片清單，如果匯入的資料格式有誤，現有的卡片清單會保持不變。
+          button.btn.btn-block.btn-info(type="button", @click="btnEditCardsCsv") #[i.fa.mr-2.fa-code] 匯出匯入
+        .card-body.border-top
+          .card-title.d-flex.align-items-center
+            h5.mb-0 CUID 卡片金鑰
+            span.ml-2.badge.badge-pill.badge-primary {{ this.mfkeys.length }}
+          h6.card-subtitle.mb-2.text-muted 雖然 CUID 卡片可以修改 Block 0，但仍需要有金鑰以及相對應的 Sector 權限才能寫入，你可以在此編輯 CUID 卡片的金鑰，每行一個金鑰，每個金鑰是由長度 12 的十六進位數字所組成。
+          button.btn.btn-block.btn-info(type="button", @click="btnEditMfkeys") #[i.fa.mr-2.fa-code] 匯出匯入
+        .card-body.border-top
+          h5.card-title 重設資料
+          h6.card-subtitle.mb-2.text-muted 本工具的資料是存在瀏覽器內的 #[code localStorage]，如果想要將資料重設，請點選下方按鈕。（此動作無法還原）
+          button.btn.btn-block.btn-outline-danger(type="button", @click="btnReset") #[i.fa.mr-2.fa-repeat] 重設資料
+    .modal.fade(data-keyboard="false", tabindex="-1", ref="cardPicker")
+      .modal-dialog.modal-dialog-centered.modal-xl
+        .modal-content
+          .modal-header
+            .modal-title.w-100.d-flex.align-items-center
+              .flex-fill
+                .input-group
+                  .input-group-prepend: span.input-group-text 模糊搜尋
+                  input.form-control#h-keyword(placeholder="模糊搜尋: 名稱、UID" v-model="cardPicker.keyword")
+                  .input-group-append: button.btn.btn-outline-danger(type="button", @click="cardPicker.keyword = ''") 清空
+              button.close(type="button", data-dismiss="modal"): span &times;
+          .modal-body.p-0
+            ul.list-group.list-group-flush
+              button.list-group-item.list-group-item-action.d-flex.flex-column(
+                :class="[cmpCard(cardPicker?.cur, c) ? 'list-group-item-secondary' : '']",
+                :key="`${c.uid}${c.sak}${c.atqa}`",
+                @click="cardPicker?.cb?.(c)",
+                type="button",
+                v-for="c of sortedCards",
+              )
+                h5.my-1 {{ c.name }}
+                .d-flex.flex-wrap.mx-n1
+                  .shield.mx-1.mb-1
+                    .shield-name.text-white.bg-00A98F UID
+                    .shield-value.text-dark.bg-white {{ c.uid }}
+                  .shield.mx-1.mb-1
+                    .shield-name.text-white.bg-B02CCE SAK
+                    .shield-value.text-dark.bg-white {{ c.sak }}
+                  .shield.mx-1.mb-1
+                    .shield-name.text-white.bg-004680 ATQA
+                    .shield-value.text-dark.bg-white {{ c.atqa }}
+    .modal.fade(data-backdrop="static", data-keyboard="false", tabindex="-1", ref="exportimport")
+      .modal-dialog.modal-dialog-centered.modal-xl.align-items-stretch
+        .modal-content
+          .modal-body.d-flex.flex-column
+            textarea.form-control.form-control-sm.flex-fill(v-model="exportimport.text")
+            small.text-muted.form-text 請點下方「複製」按鈕複製資料，或貼上新資料並點下方「匯入」按鈕。
+          .modal-footer
+            button.btn.btn-outline-success(type="button", @click="btnCopy(exportimport.text, $refs.exportimport)") 複製
+            button.btn.btn-secondary(type="button", @click="exportimport?.cb?.()") 取消
+            button.btn.btn-primary(type="button", @click="exportimport?.cb?.(exportimport.text)") 匯入
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+    //- pn532usb.use(new Pn532LoggerRxTx())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+
+    const cmpCard = (a, b) => _.toUpper(a?.uid) === _.toUpper(b?.uid) && _.toUpper(a?.atqa) === _.toUpper(b?.atqa) && _.toUpper(a?.sak) === _.toUpper(b?.sak)
+    const validateCard = c => {
+      if (!/^[\dA-Fa-f]{4}$/.test(c.atqa)) throw new TypeError('ATQA 有誤')
+      if (!/^[\dA-Fa-f]{2}$/.test(c.sak)) throw new TypeError('SAK 有誤')
+      if (!/^[\dA-Fa-f]{8}$/.test(c.uid)) throw new TypeError('UID 有誤')
+      return {
+        ..._.mapValues(_.pick(c, ['uid', 'sak', 'atqa']), _.toUpper),
+        name: (c.name ?? c.uid),
+      }
+    }
+    const countChar = (() => {
+      const OMIT = _.toArray(' ()-./~、（）')
+      return str => _.omit(_.countBy(_.toLower(str)), OMIT)
+    })()
+    const lcs = (a, b) => { // longest common subsequence
+      if (!_.isString(a) || !_.isString(b) || !a.length || !b.length) return 0
+      const ctx = {}
+      ;[a, b] = _.chain([` ${a}`, ` ${b}`]).orderBy(['length'], ['desc']).value()
+      ctx.len = b.length
+      ctx.lcs = _.times(2, () => _.times(ctx.len, () => 0))
+      //- console.log(JSON.stringify(ctx))
+      for (let i = 1; i < a.length; i++) {
+        const [cur, prev] = [ctx.lcs[i & 1], ctx.lcs[1 - (i & 1)]]
+        for (let j = 1; j < b.length; j++) {
+          cur[j] = a[i] === b[j] ? (prev[j - 1] + 1) : Math.max(prev[j], cur[j - 1])
+        }
+        //- console.log(JSON.stringify({ c: a[i], cur, prev }))
+      }
+      return ctx.lcs[1 - (a.length & 1)][ctx.len - 1]
+    }
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        cardPicker: { keyword: '', cur: null, cb: null },
+        exportimport: { text: '', cb: null },
+        h: {
+          adapter: 'ble',
+          card: { atqa: '0004', name: '', sak: '08', uid: '' },
+          cards: [],
+          mfkeys: 'FFFFFFFFFFFF\n000000000000\nA0A1A2A3A4A5\nD3F7D3F7D3F7',
+          page: 'writeCard',
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+
+        await this.init()
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+        cardName () {
+          return _.find(this.h.cards, c => cmpCard(this.h.card, c))?.name
+        },
+        cards () {
+          return _.chain(this.h.cards ?? [])
+            .map(c => {
+              const fulltext = _.toLower(`${c.name}${c.uid}`)
+              return { ...c, fulltext, countChar: countChar(fulltext) }
+            })
+            .orderBy(['name', 'uid'], ['asc', 'asc'])
+            .value()
+        },
+        sortedCards () {
+          const keyword = _.toLower(_.trim(this.cardPicker.keyword ?? ''))
+          if (!keyword) return this.cards
+          const countCharPairs = _.toPairs(countChar(keyword))
+          return _.orderBy(this.cards, [
+            c => _.sumBy(countCharPairs, ([ch, cnt]) => _.clamp(c.countChar[ch] ?? 0, cnt)),
+            c => lcs(keyword, c.fulltext),
+          ], ['desc', 'desc'])
+        },
+        mfkeys () {
+          const mfkeys = Packet.fromHex(this.h.mfkeys).chunk(6)
+          return this.pn532.$hf14a.mfKeysUniq(mfkeys)
+        },
+      },
+      methods: {
+        async init () {},
+        async btnReadCard () {
+          try {
+            this.showLoading('正在讀卡...', '若耗時過久請重新整理網頁。')
+            const card = _.chain(await this.pn532.$hf14a.mfSelectCard())
+              .pick(['uid', 'sak', 'atqa'])
+              .mapValues('hex')
+              .value()
+            this.$set(this.h, 'card', card)
+            Swal.close()
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '讀卡失敗', text: err.message })
+          }
+        },
+        async btnSetUid () {
+          try {
+            validateCard(this.h.card)
+            this.showLoading('正在寫卡...', '若耗時過久請重新整理網頁。')
+            const card = _.mapValues(_.pick(this.h.card, ['uid', 'sak', 'atqa']), hex => Packet.fromHex(hex))
+            const errors = []
+            await this.pn532.$hf14a.mfSetUidGen1a(card).catch(err => errors.push(err))
+            if (errors.length) await this.pn532.$hf14a.mfSetUidGen2({ ...card, keys: this.mfkeys }).catch(err => errors.push(err))
+            if (errors.length === 2) throw new Error(`UID: ${errors[0]?.message}, CUID: ${errors[1]?.message}`)
+            await Swal.fire({ icon: 'success', title: '寫卡成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '寫卡失敗', text: err.message })
+          }
+        },
+        async btnSaveCard () {
+          try {
+            const card = validateCard(JSON.parse(JSON.stringify(this.h.card)))
+            card.name = (await Swal.fire({
+              input: 'text',
+              inputValidator: value => value?.length ? null : '卡片名稱不能為空',
+              inputValue: this.cardName ?? card.uid,
+              reverseButtons: true,
+              showCancelButton: true,
+              title: '請輸入卡片名稱',
+            }))?.value
+            if (!card.name) return
+            this.$set(this.h, 'cards', _.uniqWith([card, ...this.h.cards], cmpCard))
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '卡片儲存失敗', text: err.message })
+          }
+        },
+        async btnPickCard () {
+          const $ref = window.jQuery(this.$refs.cardPicker)
+          const newVal = await new Promise(resolve => {
+            this.$set(this, 'cardPicker', {
+              cb: resolve,
+              cur: JSON.parse(JSON.stringify(this.h.card)),
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          $ref.modal('hide')
+          if (newVal) this.$set(this.h, 'card', newVal)
+          this.$set(this.cardPicker, 'cb', null)
+        },
+        async btnEditMfkeys () {
+          const $ref = window.jQuery(this.$refs.exportimport)
+          const newVal = await new Promise(resolve => {
+            this.$set(this, 'exportimport', {
+              cb: resolve,
+              text: this.h.mfkeys,
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          if (!_.isNil(newVal)) this.$set(this.h, 'mfkeys', newVal)
+          $ref.modal('hide')
+          this.$set(this.exportimport, 'cb', null)
+        },
+        async btnEditCardsCsv () {
+          const $ref = window.jQuery(this.$refs.exportimport)
+          let newVal = await new Promise(resolve => {
+            this.$set(this, 'exportimport', {
+              cb: resolve,
+              text: _.chain(this.h.cards)
+                .map(c => _.pick(c, ['uid', 'sak', 'atqa', 'name']))
+                .orderBy(['name', 'uid'], ['asc', 'asc'])
+                .thru(cards => Papa.unparse(cards, { header: true }))
+                .value(),
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          while (!_.isNil(newVal)) {
+            try {
+              const newCards = Papa.parse(newVal, { encoding: 'utf8', header: true })?.data ?? []
+              for (let i = 0; i < newCards.length; i++) {
+                try {
+                  newCards[i] = validateCard(newCards[i])
+                } catch (err) {
+                  err.message = `${err.message}, ${JSON5.stringify(newCards[i])}`
+                  throw err
+                }
+              }
+              this.$set(this.h, 'cards', newCards)
+              break
+            } catch (err) {
+              console.error(err)
+              await Swal.fire({ icon: 'error', title: '匯入失敗', text: err.message })
+              newVal = await new Promise(resolve => {
+                this.$set(this.exportimport, 'cb', resolve)
+              })
+            }
+          }
+          $ref.modal('hide')
+          this.$set(this.exportimport, 'cb', null)
+        },
+        async btnReset () {
+          if (!await this.confirm('是否重設資料？（此動作無法還原）', '確定', '取消')) return
+          this.showLoading('刪除資料中...', '刪除後將自動重新整理網頁。')
+          localStorage.removeItem(location.pathname)
+          location.reload()
+          return await new Promise(resolve => {})
+        },
+        async btnCopy (text, container = null) {
+          if (!container) container = document.body
+          const dom = document.createElement('textarea')
+          dom.value = text
+          container.appendChild(dom)
+          dom.select()
+          dom.setSelectionRange(0, 1e6) // For mobile devices
+          document.execCommand('copy')
+          container.removeChild(dom)
+          await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        async confirm (text, confirmButtonText, cancelButtonText) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText,
+            confirmButtonColor: '#d33',
+            confirmButtonText,
+            focusCancel: true,
+            icon: 'warning',
+            showCancelButton: true,
+            text,
+          }
+          return (await Swal.fire(args))?.isConfirmed
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })
