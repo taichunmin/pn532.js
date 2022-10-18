@@ -1,12 +1,25 @@
 {
   "name": "pn532.js",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "taichunmin <taichunmin@gmail.com>",
   "browser": "dist/pn532.min.js",
+  "description": "pn532.js is a JavaScript library for PN532 base on Web Bluetooth and Web Serial.",
+  "homepage": "https://taichunmin.idv.tw/pn532.js/docs/",
+  "jsdelivr": "dist/pn532.min.js",
   "license": "MIT",
   "main": "src/main.js",
-  "repository": "git@github.com:taichunmin/pn532.js.git",
   "type": "module",
+  "unpkg": "dist/pn532.min.js",
+  "bugs": {
+    "url": "https://github.com/taichunmin/pn532.js/issues"
+  },
+  "contributors": [
+    {
+      "email": "taichunmin@gmail.com",
+      "name": "Chunmin Tai",
+      "url": "https://taichunmin.idv.tw"
+    }
+  ],
   "dependencies": {
     "lodash": "^4.17.21",
     "web-serial-polyfill": "^1.0.14"
@@ -19,13 +32,13 @@
     "dayjs": "^1.11.5",
     "documentation": "^14.0.0",
     "dotenv": "^16.0.3",
+    "eslint": "^8.25.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.3.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.0",
     "eslint-plugin-pug": "^1.2.4",
-    "eslint": "^8.25.0",
     "fast-glob": "^3.2.12",
     "finalhandler": "^1.2.0",
     "html-minifier": "^4.0.0",
@@ -34,10 +47,29 @@
     "livereload": "^0.9.3",
     "node-watch": "^0.7.3",
     "pug": "^3.0.2",
-    "rollup-plugin-terser": "^7.0.2",
     "rollup": "^3.2.3",
+    "rollup-plugin-terser": "^7.0.2",
     "serve-static": "^1.15.0",
     "web-streams-polyfill": "^3.2.1"
+  },
+  "keywords": [
+    "13.56MHz",
+    "browser",
+    "chrome",
+    "libnfc",
+    "mifare classic",
+    "NFC",
+    "PN532",
+    "RFID",
+    "web bluetooth",
+    "web serial"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taichunmin/pn532.js.git"
+  },
+  "resolutions": {
+    "**/jstransformer-scss": "taichunmin/jstransformer-scss"
   },
   "scripts": {
     "build": "cross-env DEBUG=app:* node ./index.js && yarn docjs",
@@ -47,8 +79,5 @@
     "mkcert": "mkcert -key-file ./mkcert/key.pem -cert-file ./mkcert/cert.pem -ecdsa localhost",
     "repl": "node --experimental-repl-await repl.js",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js"
-  },
-  "resolutions": {
-    "**/jstransformer-scss": "taichunmin/jstransformer-scss"
   }
 }

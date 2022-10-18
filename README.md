@@ -1,8 +1,6 @@
 # pn532.js
 
-pn532.js is a PN532 js library base on Web Bluetooth and Web Serial.
-
-> **Note:** This is early beta documentation that may be incomplete and is still under development.
+pn532.js is a JavaScript library for PN532 base on Web Bluetooth and Web Serial.
 
 ## Browser & OS compatibility
 
@@ -16,6 +14,10 @@ For Linux and earlier versions of Windows, enable the `#experimental-web-platfor
 
 The Web Serial API is available on all desktop platforms (ChromeOS, Linux, macOS, and Windows) in Chrome 89. See MDN's [Browser compatibility](https://developer.mozilla.org/docs/Web/API/Serial#browser_compatibility) table for more information.
 
+### Web Serial API Polyfill
+
+On Android, support for USB-based serial ports is possible using the WebUSB API and the [Serial API polyfill](https://github.com/google/web-serial-polyfill). This polyfill is limited to hardware and platforms where the device is accessible via the WebUSB API because it has not been claimed by a built-in device driver.
+
 ## Installing
 
 Using jsDelivr CDN:
@@ -25,15 +27,15 @@ Using jsDelivr CDN:
 <script src="https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js"></script>
 
 <!-- PN532.js Core -->
-<script src="https://cdn.jsdelivr.net/gh/taichunmin/pn532.js@gh-pages/pn532.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/pn532.min.js"></script>
 <!-- PN532.js Hf14a plugin -->
-<script src="https://cdn.jsdelivr.net/gh/taichunmin/pn532.js@gh-pages/plugin/Hf14a.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/Hf14a.min.js"></script>
 <!-- PN532.js LoggerRxTx plugin -->
-<script src="https://cdn.jsdelivr.net/gh/taichunmin/pn532.js@gh-pages/plugin/LoggerRxTx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/LoggerRxTx.min.js"></script>
 <!-- PN532.js WebbleAdapter plugin -->
-<script src="https://cdn.jsdelivr.net/gh/taichunmin/pn532.js@gh-pages/plugin/WebbleAdapter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebbleAdapter.min.js"></script>
 <!-- PN532.js WebserialAdapter plugin -->
-<script src="https://cdn.jsdelivr.net/gh/taichunmin/pn532.js@gh-pages/plugin/WebserialAdapter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebserialAdapter.min.js"></script>
 ```
 
 ## Getting Started
