@@ -1,4 +1,4 @@
-name: github pages
+name: CI
 
 on:
   workflow_dispatch:
@@ -16,15 +16,17 @@ jobs:
         with:
           node-version: 16
           cache: 'yarn'
-      - name: 安裝相依性套件
-        run: yarn
-      - name: 程式碼風格檢查
-        run: yarn lint
-      - name: 單元測試
-        run: yarn test
-      - name: 編譯網頁
-        run: yarn build
-  gh-pages:
+      - name: install, lint, test, build
+        run: |
+          yarn
+          yarn lint
+          yarn test --coverage
+          yarn build
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+  deploy:
     if: github.ref == 'refs/heads/master'
     needs: test
     runs-on: ubuntu-latest
@@ -34,30 +36,16 @@ jobs:
         with:
           node-version: 16
           cache: 'yarn'
-      - name: 安裝相依性套件
-        run: yarn
-      - name: 編譯網頁
-        run: yarn build
+      - name: install, build
+        run: |
+          yarn
+          yarn build
       - name: 把網頁放到 GitHub Pages 的專屬分支上
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
-  npm-publish:
-    if: github.ref == 'refs/heads/master'
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-      - name: 安裝相依性套件
-        run: yarn
-      - name: 編譯網頁
-        run: yarn build
       - name: 發布至 npm
         uses: JS-DevTools/npm-publish@v1
         with:

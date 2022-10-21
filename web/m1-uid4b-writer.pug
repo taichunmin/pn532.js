@@ -84,11 +84,11 @@ block content
           small.form-text.text-muted(v-if="cardName") 此卡片已儲存為「#[code {{ cardName }}]」。
           small.form-text.text-muted(v-else) 此卡片尚未儲存，請點下方「儲存卡片」輸入卡片名稱以便下次使用。
         .row.mx-n1.mt-2
+          .col.px-1: button.btn.btn-block.btn-outline-success(type="button", @click="btnSaveCard") #[i.fa.fa-fw.fa-download] 儲存卡片
           .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnReadCard") #[i.fa.fa-fw.fa-sign-out] 讀取卡片
-          .col.px-1: button.btn.btn-block.btn-warning(type="button", @click="btnSetUid") #[i.fa.fa-fw.fa-sign-in] 寫入卡片
         .row.mx-n1.mt-2
-          .col.px-1: button.btn.btn-block.btn-outline-primary(type="button", @click="btnSaveCard") #[i.fa.fa-fw.fa-download] 儲存卡片
-          .col.px-1: button.btn.btn-block.btn-outline-success(type="button", @click="btnPickCard", :disabled="!h.cards.length") #[i.fa.fa-fw.fa-upload] 選擇卡片
+          .col.px-1: button.btn.btn-block.btn-outline-primary(type="button", @click="btnPickCard", :disabled="!h.cards.length") #[i.fa.fa-fw.fa-upload] 選擇卡片
+          .col.px-1: button.btn.btn-block.btn-primary(type="button", @click="btnSetUid") #[i.fa.fa-fw.fa-sign-in] 寫入卡片
       template(v-if="h.page === 'setting'")
         .card-body
           .card-title.d-flex.align-items-center
