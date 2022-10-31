@@ -121,12 +121,14 @@ export default class Pn532Hf14a {
      * @param {Packet} args.key 6 bytes key to authenticate the block.
      * @param {number} args.tg A byte containing the logical number of the relevant target.
      * @param {Packet} args.uid Uid of the target to be authenticated. Currently only accepted 4 bytes uid.
+     * @param {number} args.blocksPerSector A integer represent how many blocks per sector.
      * @returns {Promise<null>} Resolve after finish.
      */
-    async function mfAuthBlock ({ block = 0, isKb = 0, key, tg = 1, uid } = {}) {
+    async function mfAuthBlock ({ block = 0, isKb = 0, key, tg = 1, uid, blocksPerSector = 4 } = {}) {
       if (!Packet.isLen(key, 6)) throw new TypeError('invalid key')
       if (!Packet.isLen(uid, 4)) throw new TypeError('invalid uid')
       isKb = isKb ? 1 : 0
+      block += blocksPerSector - (block % blocksPerSector) - 1
       try {
         await pn532.inDataExchange({ tg, data: new Packet([0x60 + isKb, block, ...key, ...uid]) })
       } catch (err) {
@@ -175,7 +177,7 @@ export default class Pn532Hf14a {
     }
 
     function mfBlockRespValidator (resp) {
-      return Packet.isLen(resp.data, 17)
+      return resp.data[0] !== 0x00 || Packet.isLen(resp.data, 17)
     }
 
     /**
@@ -343,7 +345,7 @@ export default class Pn532Hf14a {
       keys = mfKeysUniq(keys)
       if (!keys.length) throw new TypeError('invalid keys')
       try {
-        const uid = (await inListPassiveTarget())?.[0]?.uid
+        let uid = (await inListPassiveTarget())?.[0]?.uid
         if (!uid) throw new Error('Failed to select card')
         const data = new Packet(sectorMax * 64)
         const success = { key: _.times(sectorMax * 2, () => null), read: _.times(sectorMax * 4, () => 0) }
@@ -366,7 +368,10 @@ export default class Pn532Hf14a {
                   } catch (err) {}
                 }
                 break
-              } catch (err) {}
+              } catch (err) {
+                await pn532.inRelease().catch(() => {})
+                uid = (await inListPassiveTarget())?.[0]?.uid
+              }
             }
           }
           for (let j = 0; j < 2; j++) { // fill key
@@ -640,7 +645,10 @@ export default class Pn532Hf14a {
                   } catch (err) {}
                 }
                 break
-              } catch (err) {}
+              } catch (err) {
+                await pn532.inRelease().catch(() => {})
+                uid = (await inListPassiveTarget())?.[0]?.uid
+              }
             }
           }
         }

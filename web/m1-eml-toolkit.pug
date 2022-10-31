@@ -135,6 +135,7 @@ block script
               return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
             }
             await Swal.fire({ icon: 'success', title: '讀取成功' })
+            await this.btnEditEml()
           } catch (err) {
             console.error(err)
             await Swal.fire({ icon: 'error', title: '讀取失敗', text: err.message })
@@ -182,6 +183,7 @@ block script
               return await Swal.fire({ icon: 'error', title: `${failed.length} 個 block 讀取失敗`, text: `失敗的 block: ${failed.join()}` })
             }
             await Swal.fire({ icon: 'success', title: '讀取成功' })
+            await this.btnEditEml()
           } catch (err) {
             console.error(err)
             await Swal.fire({ icon: 'error', title: '讀取失敗', text: err.message })

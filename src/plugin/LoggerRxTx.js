@@ -29,19 +29,19 @@ export default class Pn532LoggerRxTx {
     }
 
     pn532.addMiddleware('writePacket', async (ctx, next) => {
-      utils.logTime(`tx = ${inspectPn532Frame(ctx.pack)}`)
+      utils.logTime(`send = ${inspectPn532Frame(ctx.pack)}`)
       return await next()
     })
 
     pn532.addMiddleware('skipRespLogger', async (ctx, next) => {
       const { message, resp } = ctx
-      utils.logTime(`rx skipped, message = ${message}, resp = ${resp.pack.inspect}`)
+      utils.logTime(`resp skipped, message = ${message}, resp = ${resp.pack.inspect}`)
       return await next()
     })
 
     pn532.addMiddleware('readRespTimeout', async (ctx, next) => {
       const resp = await next()
-      if (!resp.pack.isEqual(frameAck)) utils.logTime(`rx = ${inspectPn532Frame(resp.pack)}`)
+      if (!resp.pack.isEqual(frameAck)) utils.logTime(`resp = ${inspectPn532Frame(resp.pack)}`)
       return resp
     })
   }
