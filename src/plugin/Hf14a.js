@@ -776,14 +776,14 @@ export default class Pn532Hf14a {
         // writeRegisters
         // 0x6302 CIU_TxMode bit7 TxCRCEn
         // 0x6303 CIU_RxMode bit7 RxCRCEn
-        // 0x633d CIU_BitFraming TxLastBits
+        // 0x633D CIU_BitFraming TxLastBits
         await inListPassiveTarget()
         await pn532.inSelect({ tg: 1 })
         await pn532.writeRegisters({ 0x6302: 0x00, 0x6303: 0x00 })
         await pn532.inCommunicateThru({ data: new Packet([0x50, 0x00, 0x57, 0xCD]) }).catch(() => {})
-        await pn532.writeRegisters({ 0x633d: 0x07 })
+        await pn532.writeRegisters({ 0x633D: 0x07 })
         await pn532.inCommunicateThru({ data: new Packet([0x40]) })
-        await pn532.writeRegisters({ 0x633d: 0x00 })
+        await pn532.writeRegisters({ 0x633D: 0x00 })
         await pn532.inCommunicateThru({ data: new Packet([0x43]) })
       } catch (err) {
         throw new Error('Failed to open backdoor')

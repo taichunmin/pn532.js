@@ -222,6 +222,14 @@ export class Pn532FrameExtended extends Pn532Frame {
 export default class Pn532 {
   constructor () {
     // https://web.dev/serial/#transforming-streams
+
+    /**
+     * Internal parameters of the PN532 to configure its behavior regarding different cases.
+     * @package
+     * @member {number}
+     */
+    this.parameters = 0
+
     /**
      * Stores registered middlewares to be compose. Middleware is similar to hooks. `middleware` will be compose and execute in order at specific `key` hook.
      * @package
@@ -408,6 +416,23 @@ export default class Pn532 {
   async sendCommandWakeup () {
     await this.writePacket(Packet.fromHex('55550000000000000000000000000000FF05FBD4140114010200'))
     await this.readRespTimeout({ cmd: 0x15 })
+  }
+
+  /**
+   * Reset parameters and internal registers of PN532 to default value.
+   * @async
+   * @returns {Promise<null>} Resolve after finish.
+   * @see {@link https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf|PN532/C1 P.189}
+   */
+  async resetSettings () {
+    await this.setParameters(0x14) // PARAM_AUTO_ATR_RES = 0x04, PARAM_AUTO_RATS = 0x10
+    await this.updateRegistersWithMask([
+      { adr: 0x6302, mask: 0x80, value: 0x80 }, // PN53X_REG_CIU_TxMode, SYMBOL_TX_CRC_ENABLE, 0x80
+      { adr: 0x6303, mask: 0x80, value: 0x80 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
+      { adr: 0x630D, mask: 0x10, value: 0x00 }, // PN53X_REG_CIU_ManualRCV, SYMBOL_PARITY_DISABLE, 0x00
+      { adr: 0x6338, mask: 0x08, value: 0x00 }, // PN53X_REG_CIU_Status2, SYMBOL_MF_CRYPTO1_ON, 0x00
+      { adr: 0x633D, mask: 0x07, value: 0x00 }, // PN53X_REG_CIU_BitFraming, SYMBOL_TX_LAST_BITS, 0x00
+    ])
   }
 
   /**
@@ -613,6 +638,25 @@ export default class Pn532 {
   }
 
   /**
+   * This command is used to update the masked value of several internal registers of the PN532 (located either in the SFR area or in the XRAM memory space).
+   * @async
+   * @param {{ adr: number, mask: number, value: number }[]} rows An array of register address and masked value to be update.
+   * @returns {Promise<null>} Resolve after finish.
+   * @see {@link https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf|PN532/C1 P.189}
+   */
+  async updateRegistersWithMask (rows = []) {
+    if (!_.isArray(rows)) throw new TypeError('invalid rows')
+    rows = _.filter(rows, row => _.has(row, 'adr') && _.has(row, 'mask') && _.has(row, 'value'))
+    if (!rows.length) throw new TypeError('invalid rows.length')
+    const adrs = _.uniq(_.map(rows, 'adr'))
+    const regs = await this.readRegisters(adrs)
+    for (const row of rows) {
+      regs[row.adr] = (regs[row.adr] & (row.mask ^ 0xFF)) | (row.value & row.mask)
+    }
+    await this.writeRegisters(regs)
+  }
+
+  /**
    * @typedef {object} Pn532~Gpio
    * @property {number} p32 Representing the pin P32_INT0. P32 can be used as standard GPIO and is therefore not used as external interrupt trigger. Nevertheless, for the PowerDown command (§7.2.11, p:98), this pin can be used for the waking up. Moreover, when configured to use the handshake mechanism (§6.3, p:48), this pin may be used for the H_REQ line.
    * @property {number} p33 Representing the pin P33_INT1. P33 can be used as standard GPIO and is therefore not used as external interrupt trigger. Nevertheless, for the PowerDown command (§7.2.11, p:98), this pin can be used for the waking up.
@@ -658,6 +702,32 @@ export default class Pn532 {
     this.clearRespBuf()
     await this.sendCommandNormal({ cmd: 0x0E, data: reqData })
     await this.readRespTimeout({ cmd: 0x0F })
+  }
+
+  /**
+   * This command is used to set internal parameters of the PN532, and then to configure its behavior regarding different cases.
+   * @async
+   * @param {number} flags A 8-bit unsigned integer indicates new internal parameters of PN532. `flags` is a bit-field byte which individual definition is the following:
+   *
+   * | Bit | Value | Name | Definition |
+   * | --- | ----- | ---- | ---------- |
+   * | 0 | 0x01 | PARAM_NAD_USED | Use of the NAD information in case of initiator configuration (DEP and ISO/IEC14443-4 PCD). |
+   * | 1 | 0x02 | PARAM_DID_USED | Use of the DID information in case of initiator configuration (or CID in case of ISO/IEC14443-4 PCD configuration). |
+   * | 2 | 0x04 | PARAM_AUTO_ATR_RES | Automatic generation of the ATR_RES in case of target configuration. |
+   * | 3 | 0x08 | RFU | **Must** be set to 0. |
+   * | 4 | 0x10 | PARAM_AUTO_RATS | Automatic generation of the RATS in case of ISO/IEC14443-4 PCD mode. |
+   * | 5 | 0x20 | PARAM_14443_4_PICC | The emulation of a ISO/IEC14443-4 PICC is enabled. |
+   * | 6 | 0x40 | PARAM_NO_AMBLE | The PN532 does not send Preamble and Postamble. |
+   * | 7 | 0x80 | RFU | **Must** be set to 0. |
+   * @returns {Promise<null>} Resolve after finish.
+   * @see {@link https://www.nxp.com/docs/en/user-guide/141520.pdf|PN532 User Manual P.85}
+   */
+  async setParameters (flags) {
+    this.clearRespBuf()
+    flags &= 0xFF
+    await this.sendCommandNormal({ cmd: 0x12, data: new Packet([flags]) })
+    await this.readRespTimeout({ cmd: 0x13 })
+    this.parameters = flags
   }
 
   /**

@@ -120,6 +120,7 @@ export default class Pn532WebserialAdapter {
       }
       if (isOpen()) {
         await pn532.sendCommandWakeup()
+        await pn532.resetSettings()
       } else {
         await disconnect()
         throw new Error('WebSerial not supported')

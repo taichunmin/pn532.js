@@ -173,6 +173,7 @@ export default class Pn532WebbleAdapter {
       }
       if (isOpen()) {
         await pn532.sendCommandWakeup()
+        await pn532.resetSettings()
       } else {
         await disconnect()
         throw new Error('Serial over WebBLE not supported')
