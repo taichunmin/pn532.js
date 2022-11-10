@@ -9,7 +9,7 @@
 [![npm version](https://img.shields.io/npm/v/pn532.js.svg?logo=npm)](https://www.npmjs.org/package/pn532.js)
 [![jsdelivr hits](https://img.shields.io/jsdelivr/npm/hm/pn532.js?logo=jsdelivr)](https://www.jsdelivr.com/package/npm/pn532.js)
 [![Build status](https://img.shields.io/github/workflow/status/taichunmin/pn532.js/CI?label=CI&logo=github)](https://github.com/taichunmin/pn532.js/actions/workflows/ci.yml)
-[![code coverage](https://img.shields.io/coveralls/github/taichunmin/pn532.js.svg)](https://coveralls.io/github/taichunmin/pn532.js)
+[![code coverage](https://img.shields.io/coverallsCoverage/github/taichunmin/pn532.js)](https://coveralls.io/github/taichunmin/pn532.js)
 [![install size](https://img.shields.io/badge/dynamic/json?url=https://packagephobia.com/v2/api.json?p=pn532.js&query=$.install.pretty&label=install%20size)](https://packagephobia.now.sh/result?p=pn532.js)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/pn532.js)](https://bundlephobia.com/package/pn532.js@latest)
 [![npm downloads](https://img.shields.io/npm/dm/pn532.js.svg)](https://npm-stat.com/charts.html?package=pn532.js)
@@ -36,7 +36,7 @@ On Android, support for USB-based serial ports is possible using the WebUSB API 
 
 ## Prepare PN532 hardware
 
-PN532.js support Web Serial and Web Bluetooth. You can connect PN532 to PC via an USB2TTL module (e.g. `CH340`, `PL2303`) or via BLE UART module (e.g. `HC-08`, `JDY-33`).
+PN532.js support Web Serial and Web Bluetooth. You can connect PN532 to PC via an USB2TTL module (e.g. `CH340`, `PL2303`) or via BLE UART module (e.g. `JDY-33`, `HC-08`).
 
 See Mtools Tec's [How to make PN532 work on Bluetooth](https://shop.mtoolstec.com/how-to-make-pn532-work-on-bluetooth.html) and [How To Test PN532 Working With Bluetooth Module?](https://shop.mtoolstec.com/how-to-test-pn532-working-with-bluetooth-module.html) for more information.
 

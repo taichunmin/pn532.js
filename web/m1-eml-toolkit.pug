@@ -69,13 +69,17 @@ block script
     const pn532usb = new Pn532()
     pn532usb.use(new Pn532WebserialAdapter())
     pn532usb.use(new Pn532Hf14a())
-    //- pn532usb.use(new Pn532LoggerRxTx())
 
     // ble adapter
     const pn532ble = new Pn532()
     pn532ble.use(new Pn532WebbleAdapter())
     pn532ble.use(new Pn532Hf14a())
-    //- pn532ble.use(new Pn532LoggerRxTx())
+
+    if (new URL(location).searchParams.has('debug')) {
+      // debug mode
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
 
     window.vm = new Vue({
       el: '#app',

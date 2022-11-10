@@ -1,7 +1,7 @@
 extends /layout/default
 
 block beforehtml
-  - const title = 'M1 UID4B 寫卡工具'
+  - const title = 'Mifare 卡號拷貝工具'
 
 block style
   meta(property="og:description", content=title)
@@ -59,15 +59,15 @@ block content
           li.nav-item: button.btn-sm.nav-link(type="button", @click="h.page = 'writeCard'", :class="{active: (h.page === 'writeCard')}") #[i.fa.fa-fw.fa-id-card-o] 寫卡
           li.nav-item: button.btn-sm.nav-link(type="button", @click="h.page = 'setting'", :class="{active: (h.page === 'setting')}") #[i.fa.fa-fw.fa-cogs] 設定
       .card-body.pb-3(v-if="h.page === 'writeCard'")
-        h5.card-title 寫入 UID/CUID 卡片
-        h6.card-subtitle.mb-2.text-muted 本工具可以控制 PN532 硬體來寫入 UID/CUID 卡片的 Block 0，如果您的門禁系統只讀卡號，就可以透過本工具來拷貝。目前僅支援在 Windows、Ubuntu、macOS 或 Android 8 以上的 Chrome 中使用，硬體需要自備。
+        h5.card-title.mb-2 拷貝卡號到 UID/CUID 卡片
+        small.text-muted 本工具可以控制 PN532 硬體來寫入 UID/CUID 卡片的區塊 0，如果您的門禁系統只驗證卡號，就可以透過本工具來拷貝。 目前僅支援在 Windows、Ubuntu、macOS 或 Android 8 以上的 Chrome 中使用，需要自備硬體。
         hr
-        .form-group
+        .form-group.mb-2
           label 選擇 PN532 的連線方式
           select.form-control.form-control-sm(v-model="h.adapter")
             option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
-            option(value="usb") 透過 USB 連線 (支援 PC)
-        .form-group
+            option(value="usb") 透過 USB Serial 連線 (支援 PC)
+        .form-group.mb-2
           label 卡片資料
           .input-group.input-group-sm.mb-2
             .input-group-prepend: span.input-group-text.justify-content-center UID
@@ -82,30 +82,33 @@ block content
             input.form-control(v-model="h.card.atqa", required, pattern="[\\dA-Fa-f]{4}")
             .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.card.atqa = ''") 清空
           small.form-text.text-muted(v-if="cardName") 此卡片已儲存為「#[code {{ cardName }}]」。
-          small.form-text.text-muted(v-else) 此卡片尚未儲存，請點下方「儲存卡片」輸入卡片名稱以便下次使用。
+          small.form-text.text-muted(v-else) 此卡片尚未儲存。
         .row.mx-n1.mt-2
-          .col.px-1: button.btn.btn-block.btn-outline-success(type="button", @click="btnSaveCard") #[i.fa.fa-fw.fa-download] 儲存卡片
           .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnReadCard") #[i.fa.fa-fw.fa-sign-out] 讀取卡片
-        .row.mx-n1.mt-2
-          .col.px-1: button.btn.btn-block.btn-outline-primary(type="button", @click="btnPickCard", :disabled="!h.cards.length") #[i.fa.fa-fw.fa-upload] 選擇卡片
           .col.px-1: button.btn.btn-block.btn-primary(type="button", @click="btnSetUid") #[i.fa.fa-fw.fa-sign-in] 寫入卡片
+        hr
+        h5.card-title.mb-2 已儲存 #[code {{ this.cards.length }}] 張卡片
+        small.text-muted 您可以點下方的「儲存卡片」來儲存卡片資料，或點下方的「選擇卡片」來選擇之前儲存的卡片。
+        .row.mx-n1.mt-2
+          .col.px-1: button.btn.btn-block.btn-success(type="button", @click="btnSaveCard") #[i.fa.fa-fw.fa-download] 儲存卡片
+          .col.px-1: button.btn.btn-block.btn-primary(type="button", @click="btnPickCard", :disabled="!h.cards.length") #[i.fa.fa-fw.fa-upload] 選擇卡片
       template(v-if="h.page === 'setting'")
         .card-body
-          .card-title.d-flex.align-items-center
+          .card-title.d-flex.align-items-center.mb-2
             h5.mb-0 卡片清單 (CSV)
             span.ml-2.badge.badge-pill.badge-primary {{ this.cards.length }}
-          h6.card-subtitle.mb-2.text-muted 在此提供您以 CSV 格式編輯已儲存的卡片清單，如果匯入的資料格式有誤，現有的卡片清單會保持不變。
-          button.btn.btn-block.btn-info(type="button", @click="btnEditCardsCsv") #[i.fa.mr-2.fa-code] 匯出匯入
+          small.text-muted 在此提供您以 CSV 格式編輯已儲存的卡片清單，如果匯入的資料格式有誤，現有的卡片清單會保持不變。
+          button.btn.btn-block.btn-info.mt-2(type="button", @click="btnEditCardsCsv") #[i.fa.mr-2.fa-code] 匯出匯入
         .card-body.border-top
-          .card-title.d-flex.align-items-center
+          .card-title.d-flex.align-items-center.mb-2
             h5.mb-0 CUID 卡片金鑰
             span.ml-2.badge.badge-pill.badge-primary {{ this.mfkeys.length }}
-          h6.card-subtitle.mb-2.text-muted 雖然 CUID 卡片可以修改 Block 0，但仍需要有金鑰以及相對應的 Sector 權限才能寫入，你可以在此編輯 CUID 卡片的金鑰，每行一個金鑰，每個金鑰是由長度 12 的十六進位數字所組成。
-          button.btn.btn-block.btn-info(type="button", @click="btnEditMfkeys") #[i.fa.mr-2.fa-code] 匯出匯入
+          small.text-muted 雖然 CUID 卡片可以修改 Block 0，但仍需要有金鑰以及相對應的 Sector 權限才能寫入，你可以在此編輯 CUID 卡片的金鑰，每行一個金鑰，每個金鑰是由長度 12 的十六進位數字所組成。
+          button.btn.btn-block.btn-info.mt-2(type="button", @click="btnEditMfkeys") #[i.fa.mr-2.fa-code] 匯出匯入
         .card-body.border-top
-          h5.card-title 重設資料
-          h6.card-subtitle.mb-2.text-muted 本工具的資料是存在瀏覽器內的 #[code localStorage]，如果想要將資料重設，請點選下方按鈕。（此動作無法還原）
-          button.btn.btn-block.btn-outline-danger(type="button", @click="btnReset") #[i.fa.mr-2.fa-repeat] 重設資料
+          h5.card-title.mb-2 重設資料
+          small.text-muted 本工具的資料是存在瀏覽器內的 #[code localStorage]，如果想要將資料重設，請點選下方按鈕。（此動作無法還原）
+          button.btn.btn-block.btn-outline-danger.mt-2(type="button", @click="btnReset") #[i.fa.mr-2.fa-repeat] 重設資料
     .modal.fade(data-keyboard="false", tabindex="-1", ref="cardPicker")
       .modal-dialog.modal-dialog-centered.modal-xl
         .modal-content
@@ -162,12 +165,17 @@ block script
     const pn532usb = new Pn532()
     pn532usb.use(new Pn532WebserialAdapter())
     pn532usb.use(new Pn532Hf14a())
-    //- pn532usb.use(new Pn532LoggerRxTx())
 
     // ble adapter
     const pn532ble = new Pn532()
     pn532ble.use(new Pn532WebbleAdapter())
     pn532ble.use(new Pn532Hf14a())
+
+    if (new URL(location).searchParams.has('debug')) {
+      // debug mode
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
 
     const cmpCard = (a, b) => _.toUpper(a?.uid) === _.toUpper(b?.uid) && _.toUpper(a?.atqa) === _.toUpper(b?.atqa) && _.toUpper(a?.sak) === _.toUpper(b?.sak)
     const validateCard = c => {
@@ -279,6 +287,9 @@ block script
             await this.pn532.$hf14a.mfSetUidGen1a(card).catch(err => errors.push(err))
             if (errors.length) await this.pn532.$hf14a.mfSetUidGen2({ ...card, keys: this.mfkeys }).catch(err => errors.push(err))
             if (errors.length === 2) throw new Error(`UID: ${errors[0]?.message}, CUID: ${errors[1]?.message}`)
+            // double check
+            const doublecheck = await this.pn532.$hf14a.mfSelectCard()
+            if (!doublecheck.uid.isEqual(card.uid)) throw new Error('複驗時卡號不符')
             await Swal.fire({ icon: 'success', title: '寫卡成功' })
           } catch (err) {
             console.error(err)

@@ -1,6 +1,6 @@
 {
   "name": "pn532.js",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": "taichunmin <taichunmin@gmail.com>",
   "browser": "dist/pn532.min.js",
   "description": "pn532.js is a JavaScript library for PN532 base on Web Bluetooth and Web Serial.",
