@@ -44,6 +44,25 @@ export default class Pn532WebbleAdapter {
 
     const deviceOptionalServices = _.uniq(_.map(BLESERIAL_UUID, 'serv'))
 
+    // register TransformStream
+    pn532.tx = new TransformStream({
+      flush: async controller => {
+        await disconnect()
+        controller.terminate()
+      },
+      transform: async (pack, controller) => {
+        // https://stackoverflow.com/questions/38913743/maximum-packet-length-for-bluetooth-le
+        // 20 bytes are left for the attribute data
+        for (const chunk of pack.chunk(20)) controller.enqueue(chunk)
+      },
+    })
+    pn532.tx.readable.pipeTo(new WritableStream({ // no wait
+      write: async chunk => {
+        if (!me.charWrite) throw new Error('me.charWrite can not be null')
+        await me.charWrite.writeValueWithResponse(chunk.buffer)
+      },
+    }, new CountQueuingStrategy({ highWaterMark: 1 })))
+
     /**
      * Determines whether Web Bluetooth API is supported.
      * @memberof Pn532WebbleAdapter
@@ -74,7 +93,7 @@ export default class Pn532WebbleAdapter {
       const pack = new Packet(event?.target?.value?.buffer)
       if (debug) utils.logTime(`gattOnNotify = ${pack.inspect}`)
       const writer = pn532.rx.writable.getWriter()
-      writer.write(pack)
+      await writer.write(pack)
       writer.releaseLock()
     }
 
@@ -148,25 +167,6 @@ export default class Pn532WebbleAdapter {
         me.charNotify.addEventListener('characteristicvaluechanged', gattOnNotify)
         await me.charNotify.startNotifications()
         utils.logTime(`gatt connected, serv = 0x${uuid.serv.toString(16)}, notify = 0x${uuid.notify.toString(16)}, write = 0x${uuid.write.toString(16)}`)
-
-        // register TransformStream
-        pn532.tx = new TransformStream({
-          flush: async controller => {
-            await disconnect()
-            controller.terminate()
-          },
-          transform: async (pack, controller) => {
-            // https://stackoverflow.com/questions/38913743/maximum-packet-length-for-bluetooth-le
-            // 20 bytes are left for the attribute data
-            for (const chunk of pack.chunk(20)) controller.enqueue(chunk)
-          },
-        })
-        pn532.tx.readable.pipeTo(new WritableStream({ // no wait
-          write: async chunk => {
-            // console.log(`me.charWrite.writeValueWithResponse('${chunk.inspect}')`)
-            await me.charWrite.writeValueWithResponse(chunk.buffer)
-          },
-        }, new CountQueuingStrategy({ highWaterMark: 1 })))
 
         me._isOpen = true
         break

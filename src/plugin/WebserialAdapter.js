@@ -39,6 +39,25 @@ export default class Pn532WebserialAdapter {
 
     if (pn532.$adapter) throw new Error('adapter already exists')
 
+    // register TransformStream
+    pn532.tx = new TransformStream({
+      flush: async controller => {
+        await disconnect()
+        controller.terminate()
+      },
+      transform: async (pack, controller) => {
+        controller.enqueue(pack)
+      },
+    })
+    pn532.tx.readable.pipeTo(new WritableStream({ // no wait
+      write: async chunk => {
+        if (!me.port) throw new Error('me.port can not be null')
+        const writer = me.port.writable.getWriter()
+        await writer.write(chunk)
+        writer.releaseLock()
+      },
+    }, new CountQueuingStrategy({ highWaterMark: 1 })))
+
     function getSerial () {
       return navigator?.serial ?? serialPolyfill
     }
@@ -100,25 +119,15 @@ export default class Pn532WebserialAdapter {
       await me.port.open({ baudRate: 115200 })
       me.port.addEventListener('disconnect', disconnect)
 
-      for (let i = 0; !isOpen() && i < 100; i++) {
-        if (!me.port?.readable || !me.port?.writable) {
-          await utils.sleep(10)
-          continue
+      for (let i = 0; i < 100; i++) { // wait for serial open
+        if (me.port?.readable && me.port?.writable) {
+          me._isOpen = true
+          break
         }
-        pn532.tx = new TransformStream({
-          flush: async controller => {
-            await disconnect()
-            controller.terminate()
-          },
-          transform: async (pack, controller) => {
-            controller.enqueue(pack)
-          },
-        })
-        pn532.tx.readable.pipeTo(me.port.writable) // no wait
-        me.port.readable.pipeTo(pn532.rx.writable) // no wait
-        me._isOpen = true
+        await utils.sleep(10)
       }
       if (isOpen()) {
+        me.port.readable.pipeTo(pn532.rx.writable) // no wait
         await pn532.sendCommandWakeup()
         await pn532.resetSettings()
       } else {
