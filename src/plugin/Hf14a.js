@@ -19,6 +19,10 @@ export default class Pn532Hf14a {
     const { Packet, pn532, utils } = context
     const { retry } = utils
 
+    function isAdapterOpen () {
+      return pn532?.$adapter?.isOpen?.()
+    }
+
     /**
      * @typedef {object} Pn532Hf14a~MifareTarget
      * @property {Packet} atqa 2 bytes ATQA of target (aka `SENS_RES`).
@@ -95,6 +99,10 @@ export default class Pn532Hf14a {
       return isPresent
     }
 
+    async function inReleaseIfOpened () {
+      if (isAdapterOpen()) await pn532.inRelease().catch(() => {})
+    }
+
     /**
      * This function is used to detect one mifare target in passive mode.
      * @memberof Pn532Hf14a
@@ -106,7 +114,7 @@ export default class Pn532Hf14a {
       try {
         return (await inListPassiveTarget())?.[0]
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -168,6 +176,7 @@ export default class Pn532Hf14a {
         try {
           return await pn532.inDataExchange(readOpts)
         } catch (err) {
+          if (!isAdapterOpen()) throw err // rethrow error if adapter is closed
           await pn532.inDeselect({ tg: 1 }).catch(() => {})
           await mfAuthBlock(authOpts).catch(() => {})
           throw new Error(`Failed to read block ${readOpts?.data?.[1]}`)
@@ -203,7 +212,7 @@ export default class Pn532Hf14a {
           { block, isKb, key, uid },
         )
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -234,7 +243,7 @@ export default class Pn532Hf14a {
         }
         throw new Error(`Failed to read block ${block}`)
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -275,7 +284,7 @@ export default class Pn532Hf14a {
         data.set(key, [48, 58][isKb])
         return { data, success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -324,7 +333,7 @@ export default class Pn532Hf14a {
         }
         return { data, success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -369,7 +378,7 @@ export default class Pn532Hf14a {
                 }
                 break
               } catch (err) {
-                await pn532.inRelease().catch(() => {})
+                await inReleaseIfOpened()
                 uid = (await inListPassiveTarget())?.[0]?.uid
               }
             }
@@ -381,7 +390,7 @@ export default class Pn532Hf14a {
         }
         return { data, success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -390,6 +399,7 @@ export default class Pn532Hf14a {
         try {
           await pn532.inDataExchange(writeOpts)
         } catch (err) {
+          if (!isAdapterOpen()) throw err // rethrow error if adapter is closed
           await pn532.inDeselect({ tg: 1 }).catch(() => {})
           await mfAuthBlock(authOpts).catch(() => {})
           throw new Error(`Failed to write block ${writeOpts?.data?.[1]}`)
@@ -422,7 +432,7 @@ export default class Pn532Hf14a {
           { block, isKb, key, uid },
         )
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -457,7 +467,7 @@ export default class Pn532Hf14a {
         }
         if (!isSuccess) throw new Error(`Failed to write block ${block}`)
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -505,7 +515,7 @@ export default class Pn532Hf14a {
         }
         if (!isSuccess) throw new Error('Failed to write block 0')
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -540,7 +550,7 @@ export default class Pn532Hf14a {
             )
             success[i] = 1
             if (block === 0) { // if block 0 write successfully, need to read new uid
-              await pn532.inRelease().catch(() => {})
+              await inReleaseIfOpened()
               uid = (await inListPassiveTarget())?.[0]?.uid
               if (!uid) throw new Error('Failed to select card')
             }
@@ -548,7 +558,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -586,7 +596,7 @@ export default class Pn532Hf14a {
                 )
                 success[i] = 1
                 if (block === 0) { // if block 0 write successfully, need to read new uid
-                  await pn532.inRelease().catch(() => {})
+                  await inReleaseIfOpened()
                   uid = (await inListPassiveTarget())?.[0]?.uid
                   if (!uid) throw new Error('Failed to select card')
                 }
@@ -596,7 +606,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -638,7 +648,7 @@ export default class Pn532Hf14a {
                     success[block] = 1
                     successBlocks++
                     if (block === 0) { // if block 0 write successfully, need to read new uid
-                      await pn532.inRelease().catch(() => {})
+                      await inReleaseIfOpened()
                       uid = (await inListPassiveTarget())?.[0]?.uid
                       if (!uid) throw new Error('Failed to select card')
                     }
@@ -646,7 +656,7 @@ export default class Pn532Hf14a {
                 }
                 break
               } catch (err) {
-                await pn532.inRelease().catch(() => {})
+                await inReleaseIfOpened()
                 uid = (await inListPassiveTarget())?.[0]?.uid
               }
             }
@@ -654,7 +664,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -666,6 +676,7 @@ export default class Pn532Hf14a {
           if (src.block !== dist.block && src.isKb === dist.isKb) await mfAuthBlock(dist)
           await pn532.inDataExchange({ data: new Packet([0xB0, dist.block]) })
         } catch (err) {
+          if (!isAdapterOpen()) throw err // rethrow error if adapter is closed
           await pn532.inDeselect({ tg: 1 }).catch(() => {})
           const cmdStr = {
             0xA0: 'write',
@@ -704,7 +715,7 @@ export default class Pn532Hf14a {
         if (!uid) throw new Error('Failed to select card')
         await mfIdrTransferBlockHelper(data, { ...src, uid }, { ...dist, uid })
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -733,7 +744,7 @@ export default class Pn532Hf14a {
         if (!uid) throw new Error('Failed to select card')
         await mfIdrTransferBlockHelper(data, { ...src, uid }, { ...dist, uid })
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -760,7 +771,7 @@ export default class Pn532Hf14a {
         if (!uid) throw new Error('Failed to select card')
         await mfIdrTransferBlockHelper(data, { ...src, uid }, { ...dist, uid })
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -786,9 +797,10 @@ export default class Pn532Hf14a {
         await pn532.writeRegisters({ 0x633D: 0x00 })
         await pn532.inCommunicateThru({ data: new Packet([0x43]) })
       } catch (err) {
+        if (!isAdapterOpen()) throw err // rethrow error if adapter is closed
         throw new Error('Failed to open backdoor')
       } finally {
-        await pn532.writeRegisters({ 0x6302: 0x80, 0x6303: 0x80 })
+        if (isAdapterOpen()) await pn532.writeRegisters({ 0x6302: 0x80, 0x6303: 0x80 })
       }
     }
 
@@ -797,7 +809,7 @@ export default class Pn532Hf14a {
         try {
           return await pn532.inDataExchange(readOpts)
         } catch (err) {
-          await pn532.inRelease().catch(() => {})
+          await inReleaseIfOpened()
           await mfBackdoorGen1a().catch(() => {})
           throw new Error(`Failed to read block ${readOpts?.data?.[1]}`)
         }
@@ -819,7 +831,7 @@ export default class Pn532Hf14a {
         await mfBackdoorGen1a()
         return await mfReadBlockGen1aHelper({ data: new Packet([0x30, block]), respValidator: mfBlockRespValidator })
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -849,7 +861,7 @@ export default class Pn532Hf14a {
         }
         return { data, success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -881,7 +893,7 @@ export default class Pn532Hf14a {
         }
         return { data, success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -890,7 +902,7 @@ export default class Pn532Hf14a {
         try {
           await pn532.inDataExchange(writeOpts)
         } catch (err) {
-          await pn532.inRelease().catch(() => {})
+          await inReleaseIfOpened()
           await mfBackdoorGen1a().catch(() => {})
           throw new Error(`Failed to write block ${writeOpts?.data?.[1]}`)
         }
@@ -913,7 +925,7 @@ export default class Pn532Hf14a {
         await mfBackdoorGen1a()
         await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, block, ...data]) })
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -943,7 +955,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -973,7 +985,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 
@@ -1042,7 +1054,7 @@ export default class Pn532Hf14a {
         }
         return { success }
       } finally {
-        await pn532.inRelease().catch(() => {})
+        await inReleaseIfOpened()
       }
     }
 

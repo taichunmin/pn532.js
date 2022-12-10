@@ -460,6 +460,7 @@ export default class Pn532 {
       async (ctx, next) => {
         ctx.startedAt = Date.now()
         while (true) {
+          if (!this?.$adapter?.isOpen?.()) throw new Error('device disconnected')
           ctx.nowts = Date.now()
           if (ctx.nowts > ctx.startedAt + ctx.timeout) throw new Error(`readRespTimeout ${ctx.timeout}ms`)
           while (this.respBuf.length) {

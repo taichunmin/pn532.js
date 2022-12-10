@@ -31,7 +31,7 @@ export default class Pn532WebserialAdapter {
   _isOpen = false
   name = 'adapter'
   port = null
-  portInfo = null
+  reader = null
 
   install (context, pluginOption) {
     const { pn532, utils } = context
@@ -84,6 +84,16 @@ export default class Pn532WebserialAdapter {
       return me._isOpen
     }
 
+    async function disconnected () {
+      me._isOpen = false
+      me.reader = null
+      if (me.port) {
+        await me.port.close().catch(console.error)
+        me.port = null
+      }
+      utils.logTime('device disconnected')
+    }
+
     /**
      * Disconnect the connection of adapter.
      * @memberof Pn532WebserialAdapter
@@ -92,11 +102,32 @@ export default class Pn532WebserialAdapter {
      * @returns {Promise<null>} Resolve after finished.
      */
     async function disconnect () {
-      utils.logTime('device disconnected')
-      me._isOpen = false
-      me.portInfo = null
-      me.port.removeEventListener('disconnect', disconnect)
-      me.port = null
+      if (me.reader) await me.reader.cancel()
+    }
+
+    async function startReadLoop () {
+      // https://github.com/GoogleChromeLabs/serial-terminal/blob/main/src/index.ts
+      if (me?.port?.readable) {
+        try {
+          me.reader = me.port.readable.getReader()
+
+          while (true) {
+            const { value, done } = await me.reader.read()
+            if (value) {
+              const writer = pn532.rx.writable.getWriter()
+              await writer.write(value)
+              writer.releaseLock()
+            }
+            if (done) break
+          }
+        } catch (err) {
+          console.error(err)
+        } finally {
+          if (me.reader) me.reader.releaseLock()
+        }
+      }
+
+      disconnected()
     }
 
     /**
@@ -107,32 +138,25 @@ export default class Pn532WebserialAdapter {
      * @returns {Promise<null>} Resolve after finished.
      */
     async function connect () {
-      if (!await isSupported()) throw new Error('WebSerial not supported')
+      try {
+        if (!await isSupported()) throw new Error('WebSerial not supported')
 
-      // request port
-      const serial = getSerial()
-      me.port = await serial.requestPort({ filters: WEBSERIAL_FILTERS })
-      if (!me.port) throw new Error('no port')
-      const info = me.portInfo = await me.port.getInfo()
-      utils.logTime(`port selected, usbVendorId = ${info.usbVendorId}, usbProductId = ${info.usbProductId}`)
+        // request port
+        const serial = getSerial()
+        me.port = await serial.requestPort({ filters: WEBSERIAL_FILTERS })
+        if (!me.port) throw new Error('user canceled')
+        const info = await me.port.getInfo()
+        utils.logTime(`port selected, usbVendorId = ${info.usbVendorId}, usbProductId = ${info.usbProductId}`)
 
-      await me.port.open({ baudRate: 115200 })
-      me.port.addEventListener('disconnect', disconnect)
+        await me.port.open({ baudRate: 115200 })
+        me._isOpen = true
+        startReadLoop() // no wait
 
-      for (let i = 0; i < 100; i++) { // wait for serial open
-        if (me.port?.readable && me.port?.writable) {
-          me._isOpen = true
-          break
-        }
-        await utils.sleep(10)
-      }
-      if (isOpen()) {
-        me.port.readable.pipeTo(pn532.rx.writable) // no wait
         await pn532.sendCommandWakeup()
         await pn532.resetSettings()
-      } else {
-        await disconnect()
-        throw new Error('WebSerial not supported')
+      } catch (err) {
+        disconnected()
+        throw err
       }
     }
 

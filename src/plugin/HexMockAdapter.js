@@ -25,7 +25,7 @@ export default class HexMockAdapter {
     return {
       connect () {},
       disconnect () {},
-      isOpen () {},
+      isOpen () { return true },
       isSupport () {},
     }
   }
