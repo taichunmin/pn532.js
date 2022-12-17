@@ -18,12 +18,17 @@ toc:
         description: |
           URL: <http://taichunmin.idv.tw/pn532.js/m1-uid4b-writer.html>
 
-          This tools can control PN532 via Web Bluetooth or Web Serial to write 4 bytes UID to Chinese Magic Card (support UID and CUID).
+          This tools can write 4 bytes UID to Chinese Magic Card (support UID and CUID) via Web Bluetooth or Web Serial.
       - name: M1 EML Toolkit
         description: |
           URL: <http://taichunmin.idv.tw/pn532.js/m1-eml-toolkit.html>
 
-          This tools can control PN532 via Web Bluetooth or Web Serial to read or write data from Mifare Card (support UID and CUID).
+          This tools can read or write data from Mifare Classic 1k (support UID and CUID) via Web Bluetooth or Web Serial.
+      - name: M1 UID Scanner
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/m1-uid-scanner.html>
+
+          This tools can scan UID of NFC Type A Tags via Web Bluetooth or Web Serial.
   - name: other
     children:
       - Pn532Frame

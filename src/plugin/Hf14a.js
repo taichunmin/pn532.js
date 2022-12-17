@@ -40,7 +40,7 @@ export default class Pn532Hf14a {
      * @param {object} args
      * @param {number} args.maxTg The maximum number of mifare targets to be initialized by the PN532. The PN532 is capable of handling 2 targets maximum at once, so this field should not exceed `0x02`.
      * @param {Packet} args.uid Set to UID of card if wants to initialize a target with a known UID.
-     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {number=3e4} args.timeout The maxinum timeout for waiting response.
      * @returns {Promise<Pn532Hf14a~MifareTarget[]>} Resolve with an array of detected mifare targets.
      */
     async function inListPassiveTarget ({ maxTg = 1, uid = new Packet(), timeout } = {}) {
@@ -104,15 +104,17 @@ export default class Pn532Hf14a {
     }
 
     /**
-     * This function is used to detect one mifare target in passive mode.
+     * This function is used to detect one mifare target in passive mode. It will release the target if reader connection is opened.
      * @memberof Pn532Hf14a
      * @instance
      * @async
+     * @param {object} args
+     * @param {number=3e4} args.timeout The maxinum timeout for waiting response.
      * @returns {Promise<Pn532Hf14a~MifareTarget>} Resolve with detected mifare target.
      */
-    async function mfSelectCard () {
+    async function mfSelectCard ({ timeout } = {}) {
       try {
-        return (await inListPassiveTarget())?.[0]
+        return (await inListPassiveTarget({ timeout }))?.[0]
       } finally {
         await inReleaseIfOpened()
       }

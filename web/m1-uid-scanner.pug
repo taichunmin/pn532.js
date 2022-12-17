@@ -1,0 +1,166 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'Mifare UID Scanner'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}m1-uid-scanner.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .letter-spacing-n1px
+        letter-spacing: -1px
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h3.mb-3.text-center= title
+    .form-group
+      label 選擇 PN532 的連線方式
+      select.form-control.form-control-sm(v-model="h.adapter")
+        option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+        option(value="usb") 透過 USB 連線 (支援 PC)
+    .row.mx-n1
+      .col.px-1: button.btn.btn-block.btn-danger(type="button", @click="btnClear") 清空資料
+      .col.px-1
+        button.btn.btn-block.btn-success(v-if="!scanning", type="button", @click="btnScanStart") 開始掃描
+        button.btn.btn-block.btn-warning(v-else, type="button", @click="btnScanStop") 停止掃描
+    .table-responsive.mt-3.letter-spacing-n1px(style="font-size: .85rem")
+      table.table.table-striped.table-bordered.table-sm.text-center
+        caption.text-right: small 點選表格可以複製資料
+        thead: tr
+          th 掃描時間
+          th UID
+          th ATQA
+          th SAK
+        tbody
+          tr(
+            v-for="card in h.cards",
+            :key="`${card.uid}-${card.atqa}-${card.sak}`",
+            :class="card.ts + 1000 > tsnow ? 'animate__animated animate__flash' : ''",
+          )
+            td {{ dayjs(card.ts).format('YYYY-MM-DD HH:mm:ss') }}
+            td(@click="btnCopy(card.uid)") {{ card.uid }}
+            td(@click="btnCopy(card.atqa)") {{ card.atqa }}
+            td(@click="btnCopy(card.sak)") {{ card.sak }}
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+
+    if (new URL(location).searchParams.has('debug')) {
+      // debug mode
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        scanning: false,
+        tsnow: Date.now(),
+        h: {
+          adapter: 'ble',
+          cards: [],
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+      },
+      methods: {
+        async btnScanStart () {
+          try {
+            this.showLoading('請稍候', '連線到讀卡機')
+            const version = await this.pn532.getFirmwareVersion()
+            console.log(`version = ${JSON.stringify(version)}`)
+            this.scanning = true
+            Swal.close() // scanning started
+            while (this.scanning) {
+              try {
+                const card = await this.pn532.$hf14a.mfSelectCard({ timeout: 1e3 })
+                if (card) {
+                  const newCards = _.uniqBy([{
+                    uid: card.uid.hex,
+                    atqa: card.atqa.hex,
+                    sak: card.sak.hex,
+                    ts: Date.now(),
+                  }, ...this.h.cards], c => `${c.uid}-${c.atqa}-${c.sak}`)
+                  this.$set(this.h, 'cards', newCards)
+                }
+              } catch (err) {
+                // throw error if disconnected
+                if (!this.pn532.$adapter?.isOpen?.()) throw err
+              }
+              this.tsnow = Date.now()
+              await Pn532utils.sleep(100)
+            }
+            Swal.close() // scanning stopped
+          } catch (err) {
+            console.error(err)
+            this.scanning = false
+            await Swal.fire({ icon: 'error', title: '掃描失敗', text: err.message })
+          }
+        },
+        async btnScanStop () {
+          this.showLoading('請稍候', '正在停止掃描')
+          this.scanning = false
+        },
+        async btnClear () {
+          this.$set(this.h, 'cards', [])
+        },
+        async btnCopy (text, container = null) {
+          if (!container) container = document.body
+          const dom = document.createElement('textarea')
+          dom.value = text
+          container.appendChild(dom)
+          dom.select()
+          dom.setSelectionRange(0, 1e6) // For mobile devices
+          document.execCommand('copy')
+          container.removeChild(dom)
+          await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })
