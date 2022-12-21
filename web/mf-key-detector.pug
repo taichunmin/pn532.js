@@ -1,0 +1,210 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'Mifare Key Detector'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}mf-key-detector.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .letter-spacing-n1px
+        letter-spacing: -1px
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h3.mb-3.text-center= title
+    .form-group
+      label 選擇 PN532 的連線方式
+      select.form-control.form-control-sm(v-model="h.adapter")
+        option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+        option(value="usb") 透過 USB 連線 (支援 PC)
+    .form-group
+      label 模擬類型
+      div
+        .custom-control.custom-radio.custom-control-inline
+          input.custom-control-input#h-mode-s50(type="radio", name="h-mode", value="0", v-model.number="h.mode")
+          label.custom-control-label(for="h-mode-s50") S50 (1K)
+        .custom-control.custom-radio.custom-control-inline
+          input.custom-control-input#h-mode-s70(type="radio", name="h-mode", value="1", v-model.number="h.mode")
+          label.custom-control-label(for="h-mode-s70") S70 (4K)
+    .form-group
+      .input-group.input-group-sm.mb-2.was-validated
+        .input-group-prepend: span.input-group-text.justify-content-center UID
+        input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, type="text", v-model="h.uid")
+        .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.uid = ''") 清空
+      .input-group.input-group-sm.mb-2
+        .input-group-prepend: span.input-group-text.justify-content-center KEY
+        input.form-control(placeholder="請先模擬卡片、刷卡三次以上、然後按下破解金鑰按鈕", readonly, type="text", :value="h.key")
+        .input-group-append: button.btn.btn-outline-success(type="button", @click="btnCopy(h.key)") 複製
+    .form-group
+      label 操作
+      button.btn.mt-2.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號
+      button.btn.mt-2.btn-block.btn-primary(@click="btnSetDetector") #[i.fa.fa-fw.fa-sign-in] 模擬卡片
+      button.btn.mt-2.btn-block.btn-info(@click="btnMfkey32v2") #[i.fa.fa-fw.fa-key] 破解金鑰
+      .row.mx-n1.mt-2
+        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://shop143630998.world.taobao.com/") #[i.fa.fa-fw.fa-question-circle] 聯絡賣家
+        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/MAU73") #[i.fa.fa-fw.fa-shopping-cart] 購買網頁
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+
+    if (new URL(location).searchParams.has('debug')) {
+      // debug mode
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        h: {
+          adapter: 'ble',
+          key: '',
+          mode: 0,
+          uid: '01020304',
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+      },
+      methods: {
+        async btnReadDetector () {
+          try {
+            this.showLoading('正在讀卡...', '若耗時過久請重新整理網頁。')
+            const card = await this.pn532.$hf14a.mfSelectCard()
+            this.h.uid = card.uid.hex
+            this.h.mode = +(card.atqa.hex === '0002' && card.sak.hex === '18')
+            Swal.close()
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '讀卡失敗', text: err.message })
+          }
+        },
+        async btnSetDetector () {
+          const { pn532 } = this
+          try {
+            this.showLoading('正在模擬...', '若耗時過久請重新整理網頁。')
+            const uid = Packet.fromHex(this.h.uid)
+            if (!Packet.isLen(uid, 4)) throw new TypeError('卡號 uid 有誤')
+            try {
+              await pn532.$hf14a.inListPassiveTarget()
+              await pn532.inSelect({ tg: 1 })
+              await pn532.inCommunicateThru({ data: Packet.fromHex('E000') }) // ATS
+              await pn532.inCommunicateThru({
+                data: new Packet([
+                  ...Packet.fromHex('0A0000AE010201'),
+                  ...uid,
+                  this.h.mode,
+                ]),
+              })
+              await pn532.inCommunicateThru({ data: Packet.fromHex('0B0000AE01030100') })
+            } finally {
+              if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
+            }
+            const card = await this.pn532.$hf14a.mfSelectCard()
+            if (!card) throw new Error('模擬後讀取不到卡片')
+            if (card.uid.hex !== this.h.uid) throw new Error('模擬後讀取到的 UID 錯誤')
+            if (`${card.atqa.hex}-${card.sak.hex}` !== (this.h.mode ? '0002-18' : '0004-08')) throw new Error('模擬後讀取到的 ATQA, SAK 錯誤')
+            await Swal.fire({ icon: 'success', title: '模擬成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '模擬失敗', text: err.message })
+          }
+        },
+        async btnMfkey32v2 () {
+          const { pn532 } = this
+          try {
+            this.showLoading('正在破解...', '若耗時過久請重新整理網頁。')
+            const body = { uid: this.h.uid, nt0: '00000000', nt1: '00000000' }
+            try {
+              const card = _.first(await pn532.$hf14a.inListPassiveTarget())
+              body.uid = card.uid.hex
+              await pn532.inSelect({ tg: 1 })
+              await pn532.inCommunicateThru({ data: Packet.fromHex('E000') }) // ATS
+              const { data: data1 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0A0000AE000300') })
+              if (data1[2] < 2) throw new Error('刷卡次數不夠，請再多刷卡幾次')
+              const { data: data2 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0B0000AE000000') })
+              ;[body.nr0, body.ar0] = _.times(2, i => data2.subarray(i * 4 + 4, i * 4 + 8).hex)
+              const { data: data3 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0A0000AE000100') })
+              ;[body.nr1, body.ar1] = _.times(2, i => data3.subarray(i * 4 + 4, i * 4 + 8).hex)
+            } finally {
+              if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
+            }
+            this.h.key = await this.apiMfkey32v2(body)
+            await Swal.fire({ icon: 'success', title: '破解成功', text: `卡片金鑰為 ${this.h.key}` })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '模擬失敗', text: err.message })
+          }
+        },
+        async apiMfkey32v2 ({ uid, nt0, nr0, ar0, nt1, nr1, ar1 }) {
+          const res = await fetch('https://mfkey-ybtjbo45iq-de.a.run.app/mfkey32v2', {
+            body: JSON.stringify({ uid, nt0, nr0, ar0, nt1, nr1, ar1 }),
+            cache: 'no-cache',
+            headers: { 'content-type': 'application/json' },
+            method: 'POST',
+            mode: 'cors',
+            redirect: 'follow',
+          })
+          if (!res.ok) throw new Error(`${res.status} ${(await res.json())?.message}`)
+          return (await res.json())?.key
+        },
+        async btnCopy (text, container = null) {
+          if (!container) container = document.body
+          const dom = document.createElement('textarea')
+          dom.value = text
+          container.appendChild(dom)
+          dom.select()
+          dom.setSelectionRange(0, 1e6) // For mobile devices
+          document.execCommand('copy')
+          container.removeChild(dom)
+          await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })

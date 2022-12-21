@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import Packet from './Packet.js'
 
 describe('Packet.fromView()', () => {
@@ -214,4 +215,30 @@ test.each([
 ])('Packet.fromUtf8(%j).base64url = %j', async (hex, expected) => {
   const actual = Packet.fromUtf8(hex).base64url
   expect(actual).toEqual(expected)
+})
+
+test.each([
+  ['12', 8],
+  ['1234', 16],
+  ['123456', 24],
+  ['FF', 8],
+  ['FFFF', 16],
+  ['FFFFFF', 24],
+])('Packet.fromHex(%j).getBit(offset)', async (hex, bits) => {
+  const pack = Packet.fromHex(hex)
+  const actual = _.times(bits, i => `${pack.getBit(i)}`).reverse().join('')
+  expect(actual).toEqual(BigInt(`0x${hex}`).toString(2).padStart(bits, '0'))
+})
+
+test.each([
+  ['12', 8],
+  ['1234', 16],
+  ['12345678', 32],
+  ['FF', 8],
+  ['FFFF', 16],
+  ['FFFFFFFF', 32],
+])('Packet.fromHex(%j).getBit(offset, true)', async (hex, bits) => {
+  const pack = Packet.fromHex(hex)
+  const actual = _.times(bits, i => `${pack.getBit(i, true)}`).reverse().join('')
+  expect(actual).toEqual(BigInt(`0x${pack.rhex}`).toString(2).padStart(bits, '0'))
 })

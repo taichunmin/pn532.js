@@ -18,7 +18,7 @@ const BASE64URL_CHAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123
  * const pack = new Packet(1)
  * @example
  * // new Packet(typedArray)
- * // @param {!TypedArray} typedArray When called with a `typedArray` argument, which can be an object of any of the non-bigint typed-array types (such as `Int32Array`), the `typedArray` gets copied into a new typed array. Each value in `typedArray` is converted to the corresponding type of the constructor before being copied into the new array. The length of the new typed array will be same as the length of the `typedArray` argument.
+ * // @param {!TypedArray} typedArray When called with a `typedArray` argument, which can be an object of any of the non-bigint typed-array types (such as `Int32Array`), the `typedArray` get copied into a new typed array. Each value in `typedArray` is converted to the corresponding type of the constructor before being copied into the new array. The length of the new typed array will be same as the length of the `typedArray` argument.
  * const pack = new Packet(new Uint8Array([1]))
  * @example
  * // new Packet(buffer, byteOffset=, length=)
@@ -205,109 +205,109 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Gets a signed 64-bit integer (long long) at the specified byte offset from the start of the Packet.
+   * Get a signed 64-bit integer (long long) at the specified byte offset from the start of the Packet.
    * @function getBigInt64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {BigInt} A BigInt.
    */
   getBigInt64 (...args) { return this.dvGetter('getBigInt64', ...args) }
 
   /**
-   * Gets an unsigned 64-bit integer (unsigned long long) at the specified byte offset from the start of the Packet.
+   * Get an unsigned 64-bit integer (unsigned long long) at the specified byte offset from the start of the Packet.
    * @function getBigUint64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {BigInt} A BigInt.
    */
   getBigUint64 (...args) { return this.dvGetter('getBigUint64', ...args) }
 
   /**
-   * Gets a signed 32-bit float (float) at the specified byte offset from the start of the Packet.
+   * Get a signed 32-bit float (float) at the specified byte offset from the start of the Packet.
    * @function getFloat32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit float is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} A signed 32-bit float number.
    */
   getFloat32 (...args) { return this.dvGetter('getFloat32', ...args) }
 
   /**
-   * Gets a signed 64-bit float (double) at the specified byte offset from the start of the Packet.
+   * Get a signed 64-bit float (double) at the specified byte offset from the start of the Packet.
    * @function getFloat64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit float is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} A signed 64-bit float number.
    */
   getFloat64 (...args) { return this.dvGetter('getFloat64', ...args) }
 
   /**
-   * Gets a signed 16-bit integer (short) at the specified byte offset from the start of the Packet.
+   * Get a signed 16-bit integer (short) at the specified byte offset from the start of the Packet.
    * @function getInt16
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 16-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} A signed 16-bit integer number.
    */
   getInt16 (...args) { return this.dvGetter('getInt16', ...args) }
 
   /**
-   * Gets a signed 32-bit integer (long) at the specified byte offset from the start of the Packet.
+   * Get a signed 32-bit integer (long) at the specified byte offset from the start of the Packet.
    * @function getInt32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} A signed 32-bit integer number.
    */
   getInt32 (...args) { return this.dvGetter('getInt32', ...args) }
 
   /**
-   * Gets a signed 8-bit integer (byte) at the specified byte offset from the start of the Packet.
+   * Get a signed 8-bit integer (byte) at the specified byte offset from the start of the Packet.
    * @function getInt8
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in byte, from the start of the view where to read the data.
+   * @param  {number} byteOffset The offset, in byte, from the start of the Packet where to read the data.
    * @returns {number} An unsigned 8-bit integer number.
    */
   getInt8 (...args) { return this.dvGetter('getInt8', ...args) }
 
   /**
-   * Gets an unsigned 16-bit integer (unsigned short) at the specified byte offset from the start of the Packet.
+   * Get an unsigned 16-bit integer (unsigned short) at the specified byte offset from the start of the Packet.
    * @function getUint16
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in byte, from the start of the view where to read the data.
+   * @param  {number} byteOffset The offset, in byte, from the start of the Packet where to read the data.
    * @param  {boolean} [littleEndian=true] Indicates whether the 16-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} An unsigned 16-bit integer number.
    */
   getUint16 (...args) { return this.dvGetter('getUint16', ...args) }
 
   /**
-   * Gets an unsigned 32-bit integer (unsigned long) at the specified byte offset from the start of the Packet.
+   * Get an unsigned 32-bit integer (unsigned long) at the specified byte offset from the start of the Packet.
    * @function getUint32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in byte, from the start of the view where to read the data.
+   * @param  {number} byteOffset The offset, in byte, from the start of the Packet where to read the data.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} An unsigned 32-bit integer number.
    */
   getUint32 (...args) { return this.dvGetter('getUint32', ...args) }
 
   /**
-   * Gets an unsigned 8-bit integer (unsigned byte) at the specified byte offset from the start of the Packet.
+   * Get an unsigned 8-bit integer (unsigned byte) at the specified byte offset from the start of the Packet.
    * @function getUint8
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in byte, from the start of the view where to read the data.
+   * @param  {number} byteOffset The offset, in byte, from the start of the Packet where to read the data.
    * @returns {number} An unsigned 8-bit integer number.
    */
   getUint8 (...args) { return this.dvGetter('getUint8', ...args) }
@@ -320,119 +320,119 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Stores a signed 64-bit integer (long long) value at the specified byte offset from the start of the Packet.
+   * Store a signed 64-bit integer (long long) value at the specified byte offset from the start of the Packet.
    * @function setBigInt64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {BigInt} value The value to set as a [BigInt](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/BigInt). The highest possible value that fits in a signed 64-bit integer is `2n ** (64n -1n) - 1n` (`9223372036854775807n`). Upon overflow, it will be negative (`-9223372036854775808n`).
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setBigInt64 (...args) { return this.dvSetter('setBigInt64', ...args) }
 
   /**
-   * Stores an unsigned 64-bit integer (unsigned long long) value at the specified byte offset from the start of the Packet.
+   * Store an unsigned 64-bit integer (unsigned long long) value at the specified byte offset from the start of the Packet.
    * @function setBigUint64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {BigInt} value The highest possible value that fits in an unsigned 64-bit integer is `2n ** 64n - 1n` (`18446744073709551615n`). Upon overflow, it will be zero (`0n`).
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setBigUint64 (...args) { return this.dvSetter('setBigUint64', ...args) }
 
   /**
-   * Stores a signed 32-bit float (float) value at the specified byte offset from the start of the Packet.
+   * Store a signed 32-bit float (float) value at the specified byte offset from the start of the Packet.
    * @function setFloat32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit float is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setFloat32 (...args) { return this.dvSetter('setFloat32', ...args) }
 
   /**
-   * Stores a signed 64-bit float (double) value at the specified byte offset from the start of the Packet.
+   * Store a signed 64-bit float (double) value at the specified byte offset from the start of the Packet.
    * @function setFloat64
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 64-bit float is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setFloat64 (...args) { return this.dvSetter('setFloat64', ...args) }
 
   /**
-   * Stores a signed 16-bit integer (short) value at the specified byte offset from the start of the Packet.
+   * Store a signed 16-bit integer (short) value at the specified byte offset from the start of the Packet.
    * @function setInt16
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 16-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setInt16 (...args) { return this.dvSetter('setInt16', ...args) }
 
   /**
-   * Stores a signed 32-bit integer (long) value at the specified byte offset from the start of the Packet.
+   * Store a signed 32-bit integer (long) value at the specified byte offset from the start of the Packet.
    * @function setInt32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setInt32 (...args) { return this.dvSetter('setInt32', ...args) }
 
   /**
-   * Stores a signed 8-bit integer (byte) value at the specified byte offset from the start of the Packet.
+   * Store a signed 8-bit integer (byte) value at the specified byte offset from the start of the Packet.
    * @function setInt8
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    */
   setInt8 (...args) { return this.dvSetter('setInt8', ...args) }
 
   /**
-   * Stores an unsigned 16-bit integer (unsigned short) value at the specified byte offset from the start of the Packet.
+   * Store an unsigned 16-bit integer (unsigned short) value at the specified byte offset from the start of the Packet.
    * @function setUint16
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 16-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setUint16 (...args) { return this.dvSetter('setUint16', ...args) }
 
   /**
-   * Stores an unsigned 32-bit integer (unsigned long) value at the specified byte offset from the start of the Packet.
+   * Store an unsigned 32-bit integer (unsigned long) value at the specified byte offset from the start of the Packet.
    * @function setUint32
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 32-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setUint32 (...args) { return this.dvSetter('setUint32', ...args) }
 
   /**
-   * Stores an unsigned 8-bit integer (unsigned byte) value at the specified byte offset from the start of the Packet.
+   * Store an unsigned 8-bit integer (unsigned byte) value at the specified byte offset from the start of the Packet.
    * @function setUint8
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    */
   setUint8 (...args) { return this.dvSetter('setUint8', ...args) }
 
   /**
-   * Gets an unsigned 24-bit integer at the specified byte offset from the start of the Packet.
+   * Get an unsigned 24-bit integer at the specified byte offset from the start of the Packet.
    * @function getUint24
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in byte, from the start of the view where to read the data.
+   * @param  {number} byteOffset The offset, in byte, from the start of the Packet where to read the data.
    * @param  {boolean} [littleEndian=true] Indicates whether the 24-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    * @returns {number} An unsigned 24-bit integer number.
    */
@@ -442,11 +442,11 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Stores an unsigned 24-bit integer value at the specified byte offset from the start of the Packet.
+   * Store an unsigned 24-bit integer value at the specified byte offset from the start of the Packet.
    * @function setUint24
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 24-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
@@ -458,11 +458,11 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Gets a signed 24-bit integer at the specified byte offset from the start of the Packet.
+   * Get a signed 24-bit integer at the specified byte offset from the start of the Packet.
    * @function getInt24
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to read the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to read the data from.
    * @param  {boolean} [littleEndian=true] Indicates whether the 24-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is read.
    * @returns {number} A signed 24-bit integer number.
    */
@@ -472,15 +472,46 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Stores a signed 24-bit integer value at the specified byte offset from the start of the Packet.
+   * Store a signed 24-bit integer value at the specified byte offset from the start of the Packet.
    * @function setInt24
    * @memberof Packet
    * @instance
-   * @param  {number} byteOffset The offset, in bytes, from the start of the view to store the data from.
+   * @param  {number} byteOffset The offset, in bytes, from the start of the Packet to store the data from.
    * @param  {number} value The value to set.
    * @param  {boolean} [littleEndian=true] Indicates whether the 24-bit int is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` or `undefined`, a big-endian value is written.
    */
   setInt24 (offset, value, little = true) {
     return this.setUint24(offset, value & 0xFFFFFF, little)
+  }
+
+  /**
+   * Get a bit value at the specified bit offset from the start of the Packet.
+   * @function getBit
+   * @memberof Packet
+   * @instance
+   * @param {number} bitOffset The offset, in bits, from the start of the Packet to read the data from.
+   * @param {number} [littleEndian=false] Indicates whether the bit value is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` a big-endian value is written.
+   * @returns {number} A bit value.
+   */
+  getBit (bitOffset, little = false) {
+    const byteOffset = little ? bitOffset >> 3 : this.length - (bitOffset >> 3) - 1
+    return (this[byteOffset] >> (bitOffset & 7)) & 1
+  }
+
+  /**
+   * Store a bit value at the specified bit offset from the start of the Packet.
+   * @function setBit
+   * @memberof Packet
+   * @instance
+   * @param  {number} bitOffset The offset, in bits, from the start of the Packet to store the data from.
+   * @param  {number} value The value to set.
+   * @param  {boolean} [littleEndian=false] Indicates whether the bit value is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` a big-endian value is written.
+   */
+  setBit (bitOffset, value, little = false) {
+    const byteOffset = little ? bitOffset >> 3 : this.length - (bitOffset >> 3) - 1
+    bitOffset &= 7
+    value = value ? 1 : 0
+    this[byteOffset] = (this[byteOffset] & ~(1 << bitOffset)) | (value << bitOffset)
+    return this
   }
 }
