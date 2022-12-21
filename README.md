@@ -8,7 +8,6 @@
 
 [![npm version](https://img.shields.io/npm/v/pn532.js.svg?logo=npm)](https://www.npmjs.org/package/pn532.js)
 [![jsdelivr hits](https://img.shields.io/jsdelivr/npm/hm/pn532.js?logo=jsdelivr)](https://www.jsdelivr.com/package/npm/pn532.js)
-[![Build status](https://img.shields.io/github/workflow/status/taichunmin/pn532.js/CI?label=CI&logo=github)](https://github.com/taichunmin/pn532.js/actions/workflows/ci.yml)
 [![Build status](https://img.shields.io/github/actions/workflow/status/taichunmin/pn532.js/ci.yml?branch=master)](https://github.com/taichunmin/pn532.js/actions/workflows/ci.yml)
 [![code coverage](https://img.shields.io/coverallsCoverage/github/taichunmin/pn532.js)](https://coveralls.io/github/taichunmin/pn532.js)
 [![install size](https://img.shields.io/badge/dynamic/json?url=https://packagephobia.com/v2/api.json?p=pn532.js&query=$.install.pretty&label=install%20size)](https://packagephobia.now.sh/result?p=pn532.js)
