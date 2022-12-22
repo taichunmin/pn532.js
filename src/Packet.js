@@ -496,33 +496,32 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Get a bit value at the specified bit offset from the start of the Packet.
+   * Get a bit value at the specified bit offset from the Packet.
    * @function getBit
    * @memberof Packet
    * @instance
-   * @param {number} bitOffset The offset, in bits, from the start of the Packet to read the data from.
-   * @param {number} [littleEndian=false] Indicates whether the bit value is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` a big-endian value is written.
+   * @param {number} bitOffset The offset, in bits, from the Packet to read the data from.
+   * @param {number} [lsb=false] Indicates whether the bit value is stored in LSB (Least Significant Bit) format. If `false` a MSB (Most Significant Bit) format is used.
    * @returns {number} A bit value.
    */
-  getBit (bitOffset, little = false) {
-    const byteOffset = little ? bitOffset >>> 3 : this.length - (bitOffset >>> 3) - 1
-    return (this[byteOffset] >>> (bitOffset & 7)) & 1
+  getBit (bitOffset, lsb = false) {
+    bitOffset = (lsb ? bitOffset : this.length * 8 - bitOffset - 1) ^ 7
+    return (this[bitOffset >>> 3] >>> (bitOffset & 7)) & 1
   }
 
   /**
-   * Store a bit value at the specified bit offset from the start of the Packet.
+   * Store a bit value at the specified bit offset from the Packet.
    * @function setBit
    * @memberof Packet
    * @instance
-   * @param  {number} bitOffset The offset, in bits, from the start of the Packet to store the data from.
-   * @param  {number} value The value to set.
-   * @param  {boolean} [littleEndian=false] Indicates whether the bit value is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` a big-endian value is written.
+   * @param {number} bitOffset The offset, in bits, from the Packet to store the data from.
+   * @param {number} value The value to be set.
+   * @param {number} [lsb=false] Indicates whether the bit value is stored in LSB (Least Significant Bit) format. If `false` a MSB (Most Significant Bit) format is used.
    */
-  setBit (bitOffset, value, little = false) {
-    const byteOffset = little ? bitOffset >>> 3 : this.length - (bitOffset >>> 3) - 1
-    bitOffset &= 7
-    value = value ? 1 : 0
-    this[byteOffset] = (this[byteOffset] & ~(1 << bitOffset)) | (value << bitOffset)
+  setBit (bitOffset, value, lsb = false) {
+    bitOffset = (lsb ? bitOffset : this.length * 8 - bitOffset - 1) ^ 7
+    const oldBit = (this[bitOffset >>> 3] >>> (bitOffset & 7)) & 1
+    if (oldBit ^ (value ? 1 : 0)) this[bitOffset >>> 3] ^= 1 << (bitOffset & 7)
     return this
   }
 }

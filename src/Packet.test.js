@@ -244,6 +244,6 @@ test.each([
   ['FFFFFFFF', 32],
 ])('Packet.fromHex(%j).getBit(offset, true)', async (hex, bits) => {
   const pack = Packet.fromHex(hex)
-  const actual = _.times(bits, i => `${pack.getBit(i, true)}`).reverse().join('')
-  expect(actual).toEqual(BigInt(`0x${pack.rhex}`).toString(2).padStart(bits, '0'))
+  const actual = _.times(bits, i => `${pack.getBit(i, true)}`).join('')
+  expect(actual).toEqual(BigInt(`0x${hex}`).toString(2).padStart(bits, '0'))
 })

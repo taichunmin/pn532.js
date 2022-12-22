@@ -1,7 +1,7 @@
 extends /layout/default
 
 block beforehtml
-  - const title = 'Key Detector for 福睿'
+  - const title = 'Key Detector (福睿)'
 
 block style
   meta(property="og:description", content=title)
@@ -17,68 +17,85 @@ block style
         font-family: 'Noto Sans TC', sans-serif
       .letter-spacing-n1px
         letter-spacing: -1px
-      #app .input-group-text
-        width: 90px
+      .input-group-prepend > .input-group-text
+        width: 85px
 
 block content
   #app.my-3.container.text-monospace(v-cloak)
-    h3.mb-3.text-center= title
+    h4.mb-3.text-center= title
     .form-group
       label 選擇 PN532 的連線方式
       select.form-control.form-control-sm(v-model="h.adapter")
         option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
         option(value="usb") 透過 USB 連線 (支援 PC)
-    .form-group
-      label 模擬類型
-      div
-        .custom-control.custom-radio.custom-control-inline
-          input.custom-control-input#h-mode-s50(type="radio", name="h-mode", value="0", v-model.number="h.mode")
-          label.custom-control-label(for="h-mode-s50") S50 (1K)
-        .custom-control.custom-radio.custom-control-inline
-          input.custom-control-input#h-mode-s70(type="radio", name="h-mode", value="1", v-model.number="h.mode")
-          label.custom-control-label(for="h-mode-s70") S70 (4K)
-    .form-group
-      .input-group.input-group-sm.mb-2.was-validated
-        .input-group-prepend: span.input-group-text.justify-content-center UID
-        input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, type="text", v-model="h.uid")
-        .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.uid = ''") 清空
-    .form-group
-      label 操作
-      button.btn.mt-2.btn-block.btn-info(@click="btnMfkey32v2") #[i.fa.fa-fw.fa-key] 破解金鑰
-      .row.mx-n1.mt-2
-        .col.px-1: button.btn.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號
-        .col.px-1: button.btn.btn-block.btn-primary(@click="btnSetDetector") #[i.fa.fa-fw.fa-sign-in] 模擬卡號
-      .row.mx-n1.mt-2
-        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://xmfuruixin.taobao.com/") #[i.fa.fa-fw.fa-shopping-cart] 店舖頁面
-        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/0vzx7") #[i.fa.fa-fw.fa-tag] 購買網頁
-    .table-responsive.mt-3.letter-spacing-n1px(style="font-size: .85rem")
-      table.table.table-striped.table-bordered.table-sm.text-center
-        caption.text-right: small 點選表格可以複製資料
-        thead: tr
-          th uid
-          th sector
-          th type
-          th key
-        tbody
-          tr(v-if="!h.detects.length"): td.text-center(colspan="4") 請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。
-          tr(
-            v-for="d in h.detects",
-            :key="`${d.uid}-${d.sector}-${d.type}-${d.key}`",
-          )
-            td(@click="btnCopy(d.uid)") {{ d.uid }}
-            td(@click="btnCopy(d.sector)") {{ d.sector }}
-            td(@click="btnCopy('AB'[d.type])") {{ 'AB'[d.type] }}
-            td(@click="btnCopy(d.key)") {{ d.key }}
-    .form-group
-      label 使用教學及常見問題
-      .text-muted.mt-2: small 請先把原卡放在 PN532 上，按下「讀取卡號」來取得原卡的卡號，然後把原卡移開並把「福睿偵測卡」放到 PN532 上，按下「模擬卡號」來設定卡號。模擬完成後，請把「福睿偵測卡」拿去門禁讀卡機刷卡三次以上，然後再把「福睿偵測卡」放在 PN532 上，按下「破解金鑰」應該就可以取得金鑰了。
-      .text-muted.mt-2: small 開發者所取得的「福睿偵測卡」硬體，能夠記錄 8 次 Sector 0 的刷卡記錄，如果已經記錄過 8 次 Sector 0 刷卡記錄，你就需要把「福睿偵測卡」放到 PN532 上，再次按下「模擬卡號」按鈕才能重新記錄。
-      .text-muted.mt-2: small 如果沒有辦法成功使用這種方式取得卡片金鑰，代表讀卡機沒有使用金鑰讀寫 Sector 0，或是讀卡機有針對此種攻擊方式進行防範，這時候你會需要改用其他嗅探卡或是有卡嗅探的方式才能取得卡片金鑰。
+    .card.mb-3
+      .card-header #[i.fa.fa-fw.fa-id-card] 讀取或模擬卡片
+      .card-body
+        .input-group.input-group-sm.mb-2
+          .input-group-prepend: span.input-group-text.justify-content-center 卡片類型
+          select.form-control.form-control-sm(v-model="h.type")
+            option(value="0") S50CL1 (1k, 4 bytes UID)
+            option(value="1") S70CL1 (4k, 4 bytes UID)
+        .input-group.input-group-sm.mb-2.was-validated
+          .input-group-prepend: span.input-group-text.justify-content-center UID
+          input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, type="text", v-model="h.uid")
+          .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.uid = ''") 清空
+        .row.mx-n1
+          .col.px-1: button.btn.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號
+          .col.px-1: button.btn.btn-block.btn-primary(@click="btnSetDetector") #[i.fa.fa-fw.fa-sign-in] 模擬卡號
+    .card.mb-3
+      .card-header #[i.fa.fa-fw.fa-lock] 破解金鑰或測試讀取
+      .card-body
+        .input-group.input-group-sm.mb-2.was-validated
+          .input-group-prepend: span.input-group-text.justify-content-center Block
+          input.form-control(type="number", min="0", max="63", required, v-model.number="h.block")
+          .input-group-append: span.input-group-text Sector {{ (h?.block ?? 0) >>> 2 }}
+        .input-group.input-group-sm.mb-2
+          .input-group-prepend: span.input-group-text.justify-content-center KEY類型
+          select.form-control.form-control-sm(v-model.number="h.isKb")
+            option(value="0") Key A
+            option(value="1") Key B
+        .input-group.input-group-sm.mb-2.was-validated
+          .input-group-prepend: span.input-group-text.justify-content-center KEY
+          input.form-control(type="text", required, pattern="[\\dA-Fa-f]{12}", v-model="h.key")
+          .input-group-append: button.btn.btn-outline-success(type="button", @click="h.key") 複製
+        .row.mx-n1
+          .col.px-1: button.btn.btn-block.btn-success(@click="btnMfkey32v2") #[i.fa.fa-fw.fa-key] 破解金鑰
+          .col.px-1: button.btn.btn-block.btn-primary(@click="btnReadBlock") #[i.fa.fa-fw.fa-unlock-alt] 測試讀取
+      .table-responsive.letter-spacing-n1px(style="font-size: .85rem")
+        table.mb-0.table.table-striped.table-bordered.table-sm.text-center
+          thead: tr
+            th sector
+            th isKb
+            th key
+            th &nbsp;
+          tbody
+            tr(v-if="!h.detects.length"): td.text-center(colspan="4") 請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。
+            tr(
+              v-for="d in h.detects",
+              :key="`${d.block}-${d.isKb}-${d.key}`",
+            )
+              td(@click="btnCopy(d.block >>> 2)") {{ d.block >>> 2 }}
+              td(@click="btnCopy('AB'[d.isKb])") {{ 'AB'[d.isKb] }}
+              td(@click="btnCopy(d.key)") {{ d.key }}
+              td(@click="btnSetTestFromDetect(d)"): a.badge.badge-primary.mr-1(href="javascript:void(0)") 填寫
+    .card.mb-3
+      .card-header #[i.fa.fa-fw.fa-book] 使用教學及購買連結
+      .card-body
+        small
+          p 請先把原卡放在 PN532 上，按下「讀取卡號」來取得原卡的卡號，然後把原卡移開並把「福睿偵測卡」放到 PN532 上，按下「模擬卡號」來設定卡號。模擬完成後，請把「福睿偵測卡」拿去門禁讀卡機刷卡三次以上，然後再把「福睿偵測卡」放在 PN532 上，按下「破解金鑰」應該就可以取得金鑰了。
+          p 開發者所取得的「福睿偵測卡」硬體，能夠記錄 8 次 Sector 0 的刷卡記錄，如果已經記錄過 8 次 Sector 0 刷卡記錄，你就需要把「福睿偵測卡」放到 PN532 上，再次按下「模擬卡號」按鈕才能重新記錄。
+          p 如果沒有辦法成功使用這種方式取得卡片金鑰，代表讀卡機沒有使用金鑰讀寫 Sector 0，或是讀卡機有針對此種攻擊方式進行防範，這時候你會需要改用其他嗅探卡或是側錄讀卡機與原卡的通訊資料才能破解金鑰。
+        .row.mx-n1.mt-2
+          .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://xmfuruixin.taobao.com/") #[i.fa.fa-fw.fa-shopping-cart] 店舖頁面
+          .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/0vzx7") #[i.fa.fa-fw.fa-tag] 購買網頁
+        button.btn.mt-2.btn-block.btn-danger(@click="btnReset") #[i.fa.mr-2.fa-repeat] 重設資料
 
 block script
   script.
     const {
       Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Crypto1,
       Pn532Hf14a,
       Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
       Pn532WebbleAdapter,
@@ -106,8 +123,11 @@ block script
       data: {
         h: {
           adapter: 'ble',
+          block: 3,
           detects: [],
-          mode: 0,
+          isKb: 0,
+          key: 'FFFFFFFFFFFF',
+          type: 0,
           uid: '01020304',
         },
       },
@@ -132,7 +152,7 @@ block script
             this.showLoading('正在讀卡...', '若耗時過久請重新整理網頁。')
             const card = await this.pn532.$hf14a.mfSelectCard()
             this.h.uid = card.uid.hex
-            this.h.mode = +(card.atqa.hex === '0002' && card.sak.hex === '18')
+            this.h.type = +(card.atqa.hex === '0002' && card.sak.hex === '18')
             Swal.close()
           } catch (err) {
             console.error(err)
@@ -166,7 +186,7 @@ block script
                   Packet.fromHex('AAA4'), // cmd
                   uid, // uid
                   new Packet([uid.xor]), // uid bcc
-                  Packet.fromHex(this.h.mode ? '180200' : '080400'), // sak, atqa
+                  Packet.fromHex(this.h.type ? '180200' : '080400'), // sak, atqa
                   new Packet(8),
                 ),
               })
@@ -183,17 +203,34 @@ block script
             const card = await this.pn532.$hf14a.mfSelectCard()
             if (!card) throw new Error('模擬後讀取不到卡片')
             if (card.uid.hex !== this.h.uid) throw new Error('模擬後讀取到的 UID 錯誤')
-            if (`${card.atqa.hex}-${card.sak.hex}` !== (this.h.mode ? '0002-18' : '0004-08')) throw new Error('模擬後讀取到的 ATQA, SAK 錯誤')
+            if (`${card.atqa.hex}-${card.sak.hex}` !== (this.h.type ? '0002-18' : '0004-08')) throw new Error('模擬後讀取到的 ATQA, SAK 錯誤')
             await Swal.fire({ icon: 'success', title: '模擬成功' })
           } catch (err) {
             console.error(err)
             await Swal.fire({ icon: 'error', title: '模擬失敗', text: err.message })
           }
         },
+        async btnReadBlock () {
+          const { pn532 } = this
+          try {
+            this.showLoading('正在測試...', '若耗時過久請重新整理網頁。')
+            const blockData = await pn532.$hf14a.mfReadBlock({
+              block: this.h.block,
+              isKb: this.h.isKb,
+              key: Packet.fromHex(this.h.key),
+            })
+            console.log(blockData)
+            await Swal.fire({ icon: 'success', title: '測試成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '測試失敗', text: err.message })
+          }
+        },
         async btnMfkey32v2 () {
           const { pn532 } = this
           try {
             this.showLoading('正在破解...', '若耗時過久請重新整理網頁。')
+            this.$set(this.h, 'detects', [])
             const records = []
             try {
               await pn532.$hf14a.inListPassiveTarget()
@@ -211,10 +248,10 @@ block script
                   uid: data2.subarray(0, 4).hex,
                   block: data2[4],
                   sector: data2[4] >>> 2,
-                  type: +(data2[5] === 0x61),
-                  nt: data2.subarray(6, 10).hex,
-                  nr: data2.subarray(10, 14).hex,
-                  ar: data2.subarray(14, 18).hex,
+                  isKb: +(data2[5] === 0x61),
+                  nt: data2.subarray(6, 10),
+                  nr: data2.subarray(10, 14),
+                  ar: data2.subarray(14, 18),
                 })
               }
             } finally {
@@ -223,19 +260,17 @@ block script
               ])
               if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
             }
-            this.$set(this.h, 'detects', [])
             let detectLen = 0
             for (let i = 0; i < records.length; i++) {
               try {
                 const r0 = records[i]
-                const r1 = _.find(records, r => _.every(['uid', 'sector', 'type'], k => r0[k] === r[k]), i + 1)
+                const r1 = _.find(records, r => _.every(['uid', 'sector', 'isKb'], k => r0[k] === r[k]), i + 1)
                 if (!r1) continue
                 this.showLoading('正在破解...', `正在計算第 ${++detectLen} 組金鑰`)
                 this.$set(this.h, 'detects', _.unionWith([{
-                  key: await this.apiMfkey32v2(r0.uid, r0, r1),
-                  sector: r0.sector,
-                  type: r0.type,
-                  uid: r0.uid,
+                  block: r0.block,
+                  isKb: r0.isKb,
+                  key: this.mfkey32v2(r0.uid, r0, r1),
                 }], this.h.detects, _.isEqual))
               } catch (err) {
                 console.error(err)
@@ -247,19 +282,19 @@ block script
             await Swal.fire({ icon: 'error', title: '破解失敗', text: err.message })
           }
         },
-        async apiMfkey32v2 (uid, r0, r1) {
-          const { nt: nt0, nr: nr0, ar: ar0 } = r0
-          const { nt: nt1, nr: nr1, ar: ar1 } = r1
-          const res = await fetch('https://mfkey-ybtjbo45iq-de.a.run.app/mfkey32v2', {
-            body: JSON.stringify({ uid, nt0, nr0, ar0, nt1, nr1, ar1 }),
-            cache: 'no-cache',
-            headers: { 'content-type': 'application/json' },
-            method: 'POST',
-            mode: 'cors',
-            redirect: 'follow',
-          })
-          if (!res.ok) throw new Error(`${res.status} ${(await res.json())?.message}`)
-          return (await res.json())?.key
+        btnSetTestFromDetect (detect) {
+          _.assign(this.h, _.pick(detect, ['block', 'isKb', 'key']))
+        },
+        mfkey32v2 (uid, r0, r1) {
+          return Crypto1.mfkey32v2({
+            uid,
+            nt0: r0.nt,
+            nr0: r0.nr,
+            ar0: r0.ar,
+            nt1: r1.nt,
+            nr1: r1.nr,
+            ar1: r1.ar,
+          }).hex
         },
         async btnCopy (text, container = null) {
           if (!container) container = document.body
@@ -271,6 +306,26 @@ block script
           document.execCommand('copy')
           container.removeChild(dom)
           await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        async btnReset () {
+          if (!await this.confirm('是否重設資料？（此動作無法還原）', '確定', '取消')) return
+          this.showLoading('重設資料中...', '重設後將自動重新整理網頁。')
+          localStorage.removeItem(location.pathname)
+          location.reload()
+          return await new Promise(resolve => {})
+        },
+        async confirm (text, confirmButtonText, cancelButtonText) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText,
+            confirmButtonColor: '#d33',
+            confirmButtonText,
+            focusCancel: true,
+            icon: 'warning',
+            showCancelButton: true,
+            text,
+          }
+          return (await Swal.fire(args))?.isConfirmed
         },
         showLoading (title, text) {
           Swal.fire({

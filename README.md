@@ -50,6 +50,8 @@ Using jsDelivr CDN:
 
 <!-- PN532.js Core -->
 <script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/pn532.min.js"></script>
+<!-- PN532.js Crypto1 -->
+<script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/Crypto1.min.js"></script>
 <!-- PN532.js Hf14a plugin -->
 <script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/Hf14a.min.js"></script>
 <!-- PN532.js LoggerRxTx plugin -->
@@ -71,6 +73,7 @@ A pn532 instance must register exactly one adapter plugin:
 const {
   _, // lodash: https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js
   Pn532: { Pn532, Packet, utils: Pn532utils },
+  Crypto1,
   Pn532Hf14a,
   Pn532WebbleAdapter,
   Pn532WebserialAdapter,
@@ -239,7 +242,9 @@ console.log(JSON.stringify(resp6)) // {"success":[1,1,1,1,... (truncated)]}
 
 * [PN532 User Manual v1.6 | NXP](https://www.nxp.com/docs/en/user-guide/141520.pdf)
 * [PN532/C1 Product data sheet v3.6 | NXP](https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf)
-* [MF1S50YYX_V1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S50YYX_V1.pdf)
+* [Mifare Classic 1k ev1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S50YYX_V1.pdf)
+* [Mifare Classic 4k ev1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S70YYX_V1.pdf)
+* [Mifare Identifcation Procedure - AN10833 | NXP](https://www.nxp.com/docs/en/application-note/AN10833.pdf)
 * [A 2018 practical guide to hacking NFC/RFID](https://smartlockpicking.com/slides/Confidence_A_2018_Practical_Guide_To_Hacking_RFID_NFC.pdf)
 * [Magic Cards Notes](https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/magic_cards_notes.md)
 * [elechouse/PN532: NFC library for Arduino](https://github.com/elechouse/PN532)

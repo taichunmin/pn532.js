@@ -136,11 +136,12 @@ export default class Pn532Hf14a {
      */
     async function mfAuthBlock ({ block = 0, isKb = 0, key, tg = 1, uid, blocksPerSector = 4 } = {}) {
       if (!Packet.isLen(key, 6)) throw new TypeError('invalid key')
-      if (!Packet.isLen(uid, 4)) throw new TypeError('invalid uid')
+      if (!Packet.isLen(uid)) throw new TypeError('invalid uid')
+      if (!_.includes([4, 7, 10], uid.length)) throw new TypeError('invalid uid length')
       isKb = isKb ? 1 : 0
       block += blocksPerSector - (block % blocksPerSector) - 1
       try {
-        await pn532.inDataExchange({ tg, data: new Packet([0x60 + isKb, block, ...key, ...uid]) })
+        await pn532.inDataExchange({ tg, data: new Packet([0x60 + isKb, block, ...key, ...uid.subarray(0, 4)]) })
       } catch (err) {
         throw new Error(`Failed to auth block ${block}`)
       }
@@ -851,9 +852,8 @@ export default class Pn532Hf14a {
         // 0x633D CIU_BitFraming TxLastBits
         await inListPassiveTarget()
         await pn532.inSelect({ tg: 1 })
-        await pn532.writeRegisters({ 0x6302: 0x00, 0x6303: 0x00 })
-        await pn532.inCommunicateThru({ data: new Packet([0x50, 0x00, 0x57, 0xCD]) }).catch(() => {})
-        await pn532.writeRegisters({ 0x633D: 0x07 })
+        await pn532.inDeselect({ tg: 1 })
+        await pn532.writeRegisters({ 0x6302: 0x00, 0x6303: 0x00, 0x633D: 0x07 })
         await pn532.inCommunicateThru({ data: new Packet([0x40]) })
         await pn532.writeRegisters({ 0x633D: 0x00 })
         await pn532.inCommunicateThru({ data: new Packet([0x43]) })

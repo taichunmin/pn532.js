@@ -6,6 +6,7 @@ toc:
     children:
       - Pn532
       - Packet
+      - Crypto1
   - name: Plugin
     children:
       - Pn532Hf14a

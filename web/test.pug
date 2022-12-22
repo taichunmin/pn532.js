@@ -19,9 +19,11 @@ block script
   script.
     const {
       Pn532: { Pn532, Packet }, // eslint-disable-line no-unused-vars
+      Crypto1, // eslint-disable-line no-unused-vars
       Pn532Hf14a,
-      Pn532LoggerRxTx,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
       Pn532WebbleAdapter,
+      Pn532WebserialAdapter, // eslint-disable-line no-unused-vars
     } = window
     const pn532 = new Pn532()
     pn532.use(new Pn532WebbleAdapter())

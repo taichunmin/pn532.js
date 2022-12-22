@@ -211,6 +211,7 @@ export class Pn532FrameExtended extends Pn532Frame {
  * const {
  *   _, // lodash: https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js
  *   Pn532: { Pn532, Packet, utils: Pn532utils },
+ *   Crypto1,
  *   Pn532Hf14a,
  *   Pn532WebbleAdapter,
  *   Pn532WebserialAdapter,
@@ -296,6 +297,7 @@ export default class Pn532 {
    * const {
    *   _, // lodash: https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js
    *   Pn532: { Pn532, Packet, utils: Pn532utils },
+   *   Crypto1,
    *   Pn532Hf14a,
    *   Pn532WebbleAdapter,
    *   Pn532WebserialAdapter,

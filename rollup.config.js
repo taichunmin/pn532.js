@@ -1,42 +1,76 @@
 import _ from 'lodash'
-import { terser } from 'rollup-plugin-terser'
+import { fileURLToPath } from 'node:url'
+import commonjs from '@rollup/plugin-commonjs'
 import json from '@rollup/plugin-json'
 import resolve from '@rollup/plugin-node-resolve'
-import commonjs from '@rollup/plugin-commonjs'
+import terser from '@rollup/plugin-terser'
+import versionInjector from 'rollup-plugin-version-injector'
 
 // good rollup example: https://github.com/MattiasBuelens/web-streams-polyfill/blob/master/rollup.config.js
-const configBrowser = {
-  format: 'umd',
-  globals: {
-    lodash: '_',
+const configs = [
+  // src/main.js
+  {
+    input: 'src/main.js',
+    plugins: [json(), resolve(), commonjs(), versionInjector({
+      injectInComments: false,
+      logLevel: 'error',
+    })],
+    external: ['lodash'],
+    output: _.times(2, isMin => ({
+      file: 'dist/pn532.js',
+      format: 'umd',
+      name: 'Pn532',
+      globals: {
+        lodash: '_',
+      },
+      ...(!isMin ? {} : { // for minify
+        file: 'dist/pn532.min.js',
+        plugins: [terser()],
+      }),
+    })),
   },
-}
 
-const configs = _.map([
-  { name: 'Pn532', input: 'main', output: 'pn532' },
-  { name: 'Pn532WebbleAdapter', input: 'plugin/WebbleAdapter', output: 'plugin/WebbleAdapter' },
-  { name: 'Pn532WebserialAdapter', input: 'plugin/WebserialAdapter', output: 'plugin/WebserialAdapter' },
-  { name: 'Pn532LoggerRxTx', input: 'plugin/LoggerRxTx', output: 'plugin/LoggerRxTx' },
-  { name: 'Pn532Hf14a', input: 'plugin/Hf14a', output: 'plugin/Hf14a' },
-], arg => ({
-  input: `src/${arg.input}.js`,
-  plugins: [json(), resolve(), commonjs()],
-  external: [
-    'lodash',
-  ],
-  output: [
-    {
-      ...configBrowser,
-      name: arg.name,
-      file: `dist/${arg.output}.js`,
-    },
-    {
-      ...configBrowser,
-      name: arg.name,
-      file: `dist/${arg.output}.min.js`,
-      plugins: [terser()],
-    },
-  ],
-}))
+  // src/Crypto1.js
+  {
+    input: 'src/Crypto1.js',
+    plugins: [json(), resolve(), commonjs()],
+    external: [
+      'lodash',
+      fileURLToPath(new URL('src/main.js', import.meta.url)),
+    ],
+    output: _.times(2, isMin => ({
+      file: 'dist/Crypto1.js',
+      format: 'umd',
+      name: 'Crypto1',
+      globals: {
+        lodash: '_',
+        [fileURLToPath(new URL('src/main', import.meta.url))]: 'Pn532',
+      },
+      ...(!isMin ? {} : { // for minify
+        file: 'dist/Crypto1.min.js',
+        plugins: [terser()],
+      }),
+    })),
+  },
+
+  // plugins
+  ..._.map(['Hf14a', 'LoggerRxTx', 'WebbleAdapter', 'WebserialAdapter'], plugin => ({
+    input: `src/plugin/${plugin}.js`,
+    plugins: [json(), resolve(), commonjs()],
+    external: ['lodash'],
+    output: _.times(2, isMin => ({
+      file: `dist/plugin/${plugin}.js`,
+      format: 'umd',
+      name: `Pn532${plugin}`,
+      globals: {
+        lodash: '_',
+      },
+      ...(!isMin ? {} : { // for minify
+        file: `dist/plugin/${plugin}.min.js`,
+        plugins: [terser()],
+      }),
+    })),
+  })),
+]
 
 export default configs
