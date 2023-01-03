@@ -59,7 +59,7 @@ export default class Packet extends Uint8Array {
   static fromHex (hex, reverse = false) {
     hex = hex.replace(/[^0-9A-Fa-f]/g, '')
     if (hex.length & 1) throw new TypeError('invalid hex string')
-    const pack = new Packet(hex.length >> 1)
+    const pack = new Packet(hex.length >>> 1)
     for (let i = 0; i < pack.length; i++) pack[i] = parseInt(hex.substr(i << 1, 2), 16)
     if (reverse) pack.reverse()
     return pack
@@ -181,7 +181,7 @@ export default class Packet extends Uint8Array {
     for (let i = 0; i < this.length; i += 3) {
       let u24 = 0
       for (let j = 0; j < 3; j++) u24 |= ((i + j) < this.length ? this[i + j] : 0) << (16 - j * 8)
-      tmp.push(_.times(Math.min(this.length - i + 1, 4), j => BASE64URL_CHAR[(u24 >> (18 - 6 * j)) & 0x3F]).join(''))
+      tmp.push(_.times(Math.min(this.length - i + 1, 4), j => BASE64URL_CHAR[(u24 >>> (18 - 6 * j)) & 0x3F]).join(''))
     }
     return tmp.join('')
   }
@@ -452,7 +452,7 @@ export default class Packet extends Uint8Array {
    */
   setUint24 (offset, value, little = true) {
     const [p8, p16] = little ? [offset + 2, offset] : [offset, offset + 1]
-    this.setUint8(p8, (value >> 16) & 0xFF)
+    this.setUint8(p8, (value >>> 16) & 0xFF)
     this.setUint16(p16, value & 0xFFFF, little)
     return this
   }
@@ -494,8 +494,8 @@ export default class Packet extends Uint8Array {
    * @returns {number} A bit value.
    */
   getBit (bitOffset, little = false) {
-    const byteOffset = little ? bitOffset >> 3 : this.length - (bitOffset >> 3) - 1
-    return (this[byteOffset] >> (bitOffset & 7)) & 1
+    const byteOffset = little ? bitOffset >>> 3 : this.length - (bitOffset >>> 3) - 1
+    return (this[byteOffset] >>> (bitOffset & 7)) & 1
   }
 
   /**
@@ -508,7 +508,7 @@ export default class Packet extends Uint8Array {
    * @param  {boolean} [littleEndian=false] Indicates whether the bit value is stored in [little- or big-endian](https://developer.mozilla.org/docs/Glossary/Endianness) format. If `false` a big-endian value is written.
    */
   setBit (bitOffset, value, little = false) {
-    const byteOffset = little ? bitOffset >> 3 : this.length - (bitOffset >> 3) - 1
+    const byteOffset = little ? bitOffset >>> 3 : this.length - (bitOffset >>> 3) - 1
     bitOffset &= 7
     value = value ? 1 : 0
     this[byteOffset] = (this[byteOffset] & ~(1 << bitOffset)) | (value << bitOffset)

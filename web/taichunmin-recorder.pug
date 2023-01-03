@@ -1,0 +1,188 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'Taichunmin Recoder'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}mf-key-detector.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .letter-spacing-n1px
+        letter-spacing: -1px
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h3.mb-3.text-center= title
+    .form-group
+      label 選擇 PN532 的連線方式
+      select.form-control.form-control-sm(v-model="h.adapter")
+        option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+        option(value="usb") 透過 USB 連線 (支援 PC)
+    .form-group
+      label 操作
+      button.btn.mt-2.btn-block.btn-primary(@click="btnUploadGen1a") #[i.fa.fa-fw.fa-cloud-upload] 讀取 UID 卡並上傳
+      button.btn.mt-2.btn-block.btn-primary(@click="btnUploadGen2") #[i.fa.fa-fw.fa-cloud-upload] 讀取 CUID 卡並上傳
+      a.btn.mt-2.btn-block.btn-success(target="_blank", href="https://docs.google.com/forms/d/1BtmTmTgl7udCKNLuNT5mjWE6mVpTFxZj0zUGLe3k_Yk/edit#responses") #[i.fa.fa-fw.fa-cloud-upload] 開啟 Google 表單
+      button.btn.mt-2.btn-block.btn-info(@click="btnEditMfkeys") #[i.fa.fa-fw.fa-key] 編輯卡片金鑰
+      button.btn.mt-2.btn-block.btn-outline-warning(@click="btnResetMfkeys") #[i.fa.fa-fw.fa-refresh] 重設為預設金鑰
+    .modal.fade(data-backdrop="static", data-keyboard="false", tabindex="-1", ref="exportimport")
+      .modal-dialog.modal-dialog-centered.modal-xl.align-items-stretch
+        .modal-content
+          .modal-body.d-flex.flex-column
+            textarea.form-control.form-control-sm.flex-fill(v-model="exportimport.text")
+            small.text-muted.form-text 請點下方「複製」按鈕複製資料，或貼上新資料並點下方「匯入」按鈕。
+          .modal-footer
+            button.btn.btn-outline-success(type="button", @click="btnCopy(exportimport.text, $refs.exportimport)") 複製
+            button.btn.btn-secondary(type="button", @click="exportimport?.cb?.()") 取消
+            button.btn.btn-primary(type="button", @click="exportimport?.cb?.(exportimport.text)") 匯入
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet, utils: Pn532utils }, // eslint-disable-line no-unused-vars
+      Pn532Hf14a,
+      Pn532LoggerRxTx, // eslint-disable-line no-unused-vars
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+
+    if (new URL(location).searchParams.has('debug')) {
+      // debug mode
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        exportimport: { text: '', cb: null },
+        h: {
+          adapter: 'ble',
+          mfkeys: '',
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+        keys () {
+          const keys = Packet.fromHex(this.h.mfkeys)
+          return keys.length % 6 ? null : this.pn532.$hf14a.mfKeysUniq(keys.chunk(6))
+        },
+      },
+      methods: {
+        async btnUploadGen1a () {
+          try {
+            this.showLoading('請稍候', '正在讀取 UID 卡')
+            const card = await this.pn532.$hf14a.mfSelectCard()
+            const { data, success } = await this.pn532.$hf14a.mfReadCardGen1a()
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              if (!await this.confirm(`${failed.length} 個 block 讀取失敗，是否上傳記錄？`)) return
+            }
+            await this.uploadGoogleForm({ ...card, data })
+            await Swal.fire({ icon: 'success', title: '上傳成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '上傳失敗', text: err.message })
+          }
+        },
+        async btnUploadGen2 () {
+          try {
+            this.showLoading('請稍候', '正在讀取 CUID 卡')
+            const card = await this.pn532.$hf14a.mfSelectCard()
+            const { data, success: { read: success } } = await this.pn532.$hf14a.mfReadCardByKeys({ keys: this.keys })
+            if (_.sum(success) !== 64) {
+              const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
+              if (!await this.confirm(`${failed.length} 個 block 讀取失敗，是否上傳記錄？`, '繼續', '取消')) return
+            }
+            await this.uploadGoogleForm({ ...card, data })
+            await Swal.fire({ icon: 'success', title: '上傳成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '上傳失敗', text: err.message })
+          }
+        },
+        async uploadGoogleForm ({ uid, atqa, sak, data }) {
+          try {
+            // https://docs.google.com/forms/d/e/1FAIpQLSf9blqxKD_8Xmh4PsN-EcykX96jXHAMNfVUOEDxqUSB15UanA/viewform?usp=pp_url&entry.267041469=ts&entry.116365793=uid&entry.533594537=atqa&entry.1428404505=sak&entry.1088724050=eml
+            const body = new URLSearchParams()
+            body.set('entry.267041469', Date.now())
+            body.set('entry.116365793', uid.hex)
+            body.set('entry.533594537', atqa.hex)
+            body.set('entry.1428404505', sak.hex)
+            body.set('entry.1088724050', data.hex)
+            await axios.post('https://docs.google.com/forms/d/e/1FAIpQLSf9blqxKD_8Xmh4PsN-EcykX96jXHAMNfVUOEDxqUSB15UanA/formResponse', body)
+          } catch (err) {
+            if (err.message !== 'Network Error') throw err
+          }
+        },
+        async btnEditMfkeys () {
+          const $ref = window.jQuery(this.$refs.exportimport)
+          const newVal = await new Promise(resolve => {
+            this.$set(this, 'exportimport', {
+              cb: resolve,
+              text: this.h.mfkeys,
+            })
+            $ref.one('hide.bs.modal', () => resolve()).modal('show')
+          })
+          if (!_.isNil(newVal)) this.$set(this.h, 'mfkeys', newVal)
+          $ref.modal('hide')
+          this.$set(this.exportimport, 'cb', null)
+        },
+        async btnResetMfkeys () {
+          if (!await this.confirm('即將重設為預設金鑰，是否繼續？', '繼續', '取消')) return
+          this.$set(this.h, 'mfkeys', 'FFFFFFFFFFFF\n000000000000\nA0A1A2A3A4A5\nD3F7D3F7D3F7')
+        },
+        async confirm (text, btnConfirm, btnCancel) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText: btnCancel,
+            confirmButtonColor: '#d33',
+            confirmButtonText: btnConfirm,
+            focusCancel: true,
+            icon: 'warning',
+            showCancelButton: true,
+            text,
+          }
+          return (await Swal.fire(args))?.isConfirmed
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })

@@ -399,7 +399,7 @@ export default class Pn532 {
     if (data.byteLength > 65533) throw new TypeError('data.byteLength > 65533') // TFI + CMD + Data (65533 bytes)
     const pack = new Packet(data.byteLength + 12) // PREAMBLE (5 bytes) + LEN (2 bytes) + LCS + TFI + CMD + Data (65533 bytes) + DCS + POSTAMBLE
     const len = data.byteLength + 2
-    const [lenM, lenL] = [len >> 8, len & 0xFF]
+    const [lenM, lenL] = [len >>> 8, len & 0xFF]
     pack.set(new Packet([0xFF, 0xFF, 0xFF, lenM, lenL, -(lenM + lenL), 0xD4]), 2)
     if (data.byteLength) pack.set(data, 10)
     const dcs = pack.byteLength - 2
@@ -678,9 +678,9 @@ export default class Pn532 {
     await this.sendCommandNormal({ cmd: 0x0C })
     const { data: resData } = await this.readRespTimeout({ cmd: 0x0D })
     return _.fromPairs([
-      ..._.times(6, i => [`p3${i}`, (resData[0] >> i) & 1]),
-      ..._.times(2, i => [`p7${i + 1}`, (resData[1] >> (i + 1)) & 1]),
-      ..._.times(2, i => [`i${i}`, (resData[2] >> i) & 1]),
+      ..._.times(6, i => [`p3${i}`, (resData[0] >>> i) & 1]),
+      ..._.times(2, i => [`p7${i + 1}`, (resData[1] >>> (i + 1)) & 1]),
+      ..._.times(2, i => [`i${i}`, (resData[2] >>> i) & 1]),
     ])
   }
 
@@ -898,12 +898,13 @@ protocol.
    * @param {object} args
    * @param {Packet} args.data An array of raw data to be sent to the target by the PN532 (max. 264 bytes, see §7.4.7, p:186).
    * @param {number} args.timeout The maxinum timeout for waiting response.
+   * @param {function} args.respValidator Custom validator of resp.
    * @returns {Promise<Pn532Frame>} Resolve with raw response need to be parsed.
    */
-  async inCommunicateThru ({ data = new Packet(), timeout } = {}) {
+  async inCommunicateThru ({ data = new Packet(), timeout, respValidator } = {}) {
     this.clearRespBuf()
     await this.sendCommandNormal({ cmd: 0x42, data })
-    const resp = await this.readRespTimeout({ cmd: 0x43, timeout })
+    const resp = await this.readRespTimeout({ cmd: 0x43, timeout, respValidator })
     const statusErr = hasPn532StatusError(resp.data[0])
     if (statusErr) throw statusErr
     resp.data = resp.data.subarray(1)

@@ -154,7 +154,7 @@ export default class Pn532Hf14a {
      * @returns {boolean} Indicating whether or not the `acl` is valid.
      */
     function mfIsValidAcl (acl) {
-      const u4arr = _.flatten(_.times(3, i => [(acl[i] & 0xF0) >> 4, acl[i] & 0xF]))
+      const u4arr = _.flatten(_.times(3, i => [(acl[i] & 0xF0) >>> 4, acl[i] & 0xF]))
       return _.every([[1, 2], [0, 5], [3, 4]], ([a, b]) => u4arr[a] ^ u4arr[b] === 0xF)
     }
 
@@ -180,7 +180,7 @@ export default class Pn532Hf14a {
         } catch (err) {
           if (!isAdapterOpen()) throw err // rethrow error if adapter is closed
           await pn532.inDeselect({ tg: 1 }).catch(() => {})
-          await mfAuthBlock(authOpts).catch(() => {})
+          await mfAuthBlock(authOpts).catch(() => {}) // assumed the key is correct, so ignore error
           throw new Error(`Failed to read block ${readOpts?.data?.[1]}`)
         }
       })
@@ -241,7 +241,10 @@ export default class Pn532Hf14a {
               { data: new Packet([0x30, block]), respValidator: mfBlockRespValidator },
               { block, isKb, key, uid },
             )
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+            await pn532.inDeselect({ tg: 1 }).catch(() => {})
+          }
         }
         throw new Error(`Failed to read block ${block}`)
       } finally {
@@ -281,7 +284,9 @@ export default class Pn532Hf14a {
             )
             data.set(blockData, i * 16)
             success[i] = 1
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+          }
         }
         data.set(key, [48, 58][isKb])
         return { data, success }
@@ -325,15 +330,48 @@ export default class Pn532Hf14a {
                 )
                 data.set(blockData, i * 16)
                 success.read[i] = 1
-              } catch (err) {}
+              } catch (err) {
+                if (!isAdapterOpen()) throw err
+              }
             }
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+            await pn532.inDeselect({ tg: 1 }).catch(() => {})
+          }
         }
         for (let isKb = 0; isKb < 2; isKb++) { // fill key
           if (!success.key[isKb]) continue
           data.set([ka, kb][isKb], [48, 58][isKb])
         }
         return { data, success }
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    async function mfCheckKeys ({ sectorMax = 16, keys } = {}) {
+      try {
+        keys = mfKeysUniq(keys)
+        if (!keys.length) throw new TypeError('invalid keys')
+        const uid = (await inListPassiveTarget())?.[0]?.uid
+        if (!uid) throw new Error('Failed to select card')
+        const sectorKeys = Array(sectorMax * 2).fill(null)
+        for (let i = 0; i < sectorMax; i++) {
+          for (let isKb = 0; isKb < 2; isKb++) {
+            const block = i * 4 + 3
+            for (const key of keys) {
+              try {
+                await mfAuthBlock({ block, isKb, key, uid })
+                sectorKeys[i * 2 + isKb] = key
+                break
+              } catch (err) {
+                if (!isAdapterOpen()) throw err
+                await pn532.inDeselect({ tg: 1 }).catch(() => {})
+              }
+            }
+          }
+        }
+        return sectorKeys
       } finally {
         await inReleaseIfOpened()
       }
@@ -356,7 +394,7 @@ export default class Pn532Hf14a {
       keys = mfKeysUniq(keys)
       if (!keys.length) throw new TypeError('invalid keys')
       try {
-        let uid = (await inListPassiveTarget())?.[0]?.uid
+        const uid = (await inListPassiveTarget())?.[0]?.uid
         if (!uid) throw new Error('Failed to select card')
         const data = new Packet(sectorMax * 64)
         const success = { key: _.times(sectorMax * 2, () => null), read: _.times(sectorMax * 4, () => 0) }
@@ -376,12 +414,14 @@ export default class Pn532Hf14a {
                     )
                     data.set(blockData, block * 16)
                     success.read[block] = 1
-                  } catch (err) {}
+                  } catch (err) {
+                    if (!isAdapterOpen()) throw err
+                  }
                 }
                 break
               } catch (err) {
-                await inReleaseIfOpened()
-                uid = (await inListPassiveTarget())?.[0]?.uid
+                if (!isAdapterOpen()) throw err
+                await pn532.inDeselect({ tg: 1 }).catch(() => {})
               }
             }
           }
@@ -465,7 +505,10 @@ export default class Pn532Hf14a {
               { block, isKb, key, uid },
             )
             isSuccess = true
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+            await pn532.inDeselect({ tg: 1 }).catch(() => {})
+          }
         }
         if (!isSuccess) throw new Error(`Failed to write block ${block}`)
       } finally {
@@ -490,30 +533,28 @@ export default class Pn532Hf14a {
       keys = mfKeysUniq(keys)
       if (!keys.length) throw new TypeError('invalid keys')
       try {
-        const tmpUid = (await inListPassiveTarget())?.[0]?.uid
-        if (!tmpUid) throw new Error('Failed to select card')
+        const oldUid = (await inListPassiveTarget())?.[0]?.uid
+        if (!oldUid) throw new Error('Failed to select card')
         const data = Packet.merge(uid, Packet.fromHex('00080400000000000000BEAF'))
         for (const b of uid) data[4] ^= b // bcc
         if (Packet.isLen(sak, 1)) data.set(sak, 5)
         if (Packet.isLen(atqa, 2)) data.set(atqa.slice().reverse(), 6)
         let isSuccess = false
         for (let i = 1; !isSuccess && i >= 0; i--) {
-          let tmpKey
           for (const key of keys) {
             try {
-              await mfAuthBlock({ block: 0, isKb: i, key, uid: tmpUid })
-              tmpKey = key
+              await mfAuthBlock({ block: 0, isKb: i, key, uid: oldUid })
+              await mfWriteBlockHelper(
+                { data: new Packet([0xA0, 0, ...data]) },
+                { block: 0, isKb: i, key, uid: oldUid },
+              )
+              isSuccess = true
               break
-            } catch (err) {}
+            } catch (err) {
+              if (!isAdapterOpen()) throw err
+              await pn532.inDeselect({ tg: 1 }).catch(() => {})
+            }
           }
-          if (!tmpKey) throw new Error('Failed to auth block 0')
-          try {
-            await mfWriteBlockHelper(
-              { data: new Packet([0xA0, 0, ...data]) },
-              { block: 0, isKb: i, key: tmpKey, uid: tmpUid },
-            )
-            isSuccess = true
-          } catch (err) {}
         }
         if (!isSuccess) throw new Error('Failed to write block 0')
       } finally {
@@ -556,7 +597,9 @@ export default class Pn532Hf14a {
               uid = (await inListPassiveTarget())?.[0]?.uid
               if (!uid) throw new Error('Failed to select card')
             }
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+          }
         }
         return { success }
       } finally {
@@ -602,9 +645,14 @@ export default class Pn532Hf14a {
                   uid = (await inListPassiveTarget())?.[0]?.uid
                   if (!uid) throw new Error('Failed to select card')
                 }
-              } catch (err) {}
+              } catch (err) {
+                if (!isAdapterOpen()) throw err
+              }
             }
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+            await pn532.inDeselect({ tg: 1 }).catch(() => {})
+          }
         }
         return { success }
       } finally {
@@ -654,12 +702,14 @@ export default class Pn532Hf14a {
                       uid = (await inListPassiveTarget())?.[0]?.uid
                       if (!uid) throw new Error('Failed to select card')
                     }
-                  } catch (err) {}
+                  } catch (err) {
+                    if (!isAdapterOpen()) throw err
+                  }
                 }
                 break
               } catch (err) {
-                await inReleaseIfOpened()
-                uid = (await inListPassiveTarget())?.[0]?.uid
+                if (!isAdapterOpen()) throw err
+                await pn532.inDeselect({ tg: 1 }).catch(() => {})
               }
             }
           }
@@ -859,7 +909,9 @@ export default class Pn532Hf14a {
             const blockData = await mfReadBlockGen1aHelper({ data: new Packet([0x30, block]), respValidator: mfBlockRespValidator })
             data.set(blockData, i * 16)
             success[i] = 1
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+          }
         }
         return { data, success }
       } finally {
@@ -890,7 +942,9 @@ export default class Pn532Hf14a {
               const blockData = await mfReadBlockGen1aHelper({ data: new Packet([0x30, block]), respValidator: mfBlockRespValidator })
               data.set(blockData, block * 16)
               success[block] = 1
-            } catch (err) {}
+            } catch (err) {
+              if (!isAdapterOpen()) throw err
+            }
           }
         }
         return { data, success }
@@ -953,7 +1007,9 @@ export default class Pn532Hf14a {
             const block = sector * 4 + i
             await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, block, ...data.subarray(i * 16, i * 16 + 16)]) })
             success[i] = 1
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+          }
         }
         return { success }
       } finally {
@@ -982,7 +1038,9 @@ export default class Pn532Hf14a {
               const block = i * 4 + j
               await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, block, ...data.subarray(block * 16, block * 16 + 16)]) })
               success[block] = 1
-            } catch (err) {}
+            } catch (err) {
+              if (!isAdapterOpen()) throw err
+            }
           }
         }
         return { success }
@@ -1037,7 +1095,9 @@ export default class Pn532Hf14a {
           if (Packet.isLen(atqa, 2)) data.set(atqa, 6)
           await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, 0, ...data]) })
           success[0] = 1
-        } catch (err) {}
+        } catch (err) {
+          if (!isAdapterOpen()) throw err
+        }
 
         // other block
         const emptyData = Packet.fromHex('00000000000000000000000000000000')
@@ -1047,12 +1107,16 @@ export default class Pn532Hf14a {
             try {
               await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, i * 4 + j, ...emptyData]) })
               success[i * 4 + j] = 1
-            } catch (err) {}
+            } catch (err) {
+              if (!isAdapterOpen()) throw err
+            }
           }
           try {
             await mfWriteBlockGen1aHelper({ data: new Packet([0xA0, i * 4 + 3, ...keyData]) })
             success[i * 4 + 3] = 1
-          } catch (err) {}
+          } catch (err) {
+            if (!isAdapterOpen()) throw err
+          }
         }
         return { success }
       } finally {
@@ -1064,6 +1128,7 @@ export default class Pn532Hf14a {
       inListPassiveTarget,
       mfAuthBlock,
       mfBackdoorGen1a,
+      mfCheckKeys,
       mfDecrementBlock,
       mfIncrementBlock,
       mfKeysUniq,

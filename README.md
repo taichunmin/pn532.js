@@ -238,6 +238,7 @@ console.log(JSON.stringify(resp6)) // {"success":[1,1,1,1,... (truncated)]}
 ## Related links
 
 * [PN532 User Manual v1.6 | NXP](https://www.nxp.com/docs/en/user-guide/141520.pdf)
+* [PN532/C1 Product data sheet v3.6 | NXP](https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf)
 * [MF1S50YYX_V1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S50YYX_V1.pdf)
 * [A 2018 practical guide to hacking NFC/RFID](https://smartlockpicking.com/slides/Confidence_A_2018_Practical_Guide_To_Hacking_RFID_NFC.pdf)
 * [Magic Cards Notes](https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/magic_cards_notes.md)
