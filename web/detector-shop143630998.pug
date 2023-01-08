@@ -1,14 +1,14 @@
 extends /layout/default
 
 block beforehtml
-  - const title = 'Mifare Key Detector'
+  - const title = 'Key Detector for 北方智能卡'
 
 block style
   meta(property="og:description", content=title)
   meta(property="og:locale", content="zh_TW")
   meta(property="og:title", content=title)
   meta(property="og:type", content="website")
-  meta(property="og:url", content=`${baseurl}mf-key-detector.html`)
+  meta(property="og:url", content=`${baseurl}detector-shop143630998.html`)
   style
     :sass
       [v-cloak]
@@ -17,6 +17,8 @@ block style
         font-family: 'Noto Sans TC', sans-serif
       .letter-spacing-n1px
         letter-spacing: -1px
+      #app .input-group-text
+        width: 90px
 
 block content
   #app.my-3.container.text-monospace(v-cloak)
@@ -40,18 +42,28 @@ block content
         .input-group-prepend: span.input-group-text.justify-content-center UID
         input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, type="text", v-model="h.uid")
         .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.uid = ''") 清空
-      .input-group.input-group-sm.mb-2
-        .input-group-prepend: span.input-group-text.justify-content-center KEY
-        input.form-control(placeholder="請先模擬卡片、刷卡三次以上、然後按下破解金鑰按鈕", readonly, type="text", :value="h.key")
-        .input-group-append: button.btn.btn-outline-success(type="button", @click="btnCopy(h.key)") 複製
+      template(v-for="d in [h.detect]")
+        .input-group.input-group-sm.mb-2
+          .input-group-prepend: span.input-group-text.justify-content-center TYPE
+          input.form-control(placeholder="請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。", readonly, type="text", :value="d ? `sector ${d.sector} key ${'AB'[d.type]}` : ''")
+        .input-group.input-group-sm.mb-2
+          .input-group-prepend: span.input-group-text.justify-content-center KEY
+          input.form-control(placeholder="請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。", readonly, type="text", :value="d?.key")
+          .input-group-append: button.btn.btn-outline-success(type="button", @click="btnCopy(d.key)") 複製
     .form-group
       label 操作
-      button.btn.mt-2.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號
-      button.btn.mt-2.btn-block.btn-primary(@click="btnSetDetector") #[i.fa.fa-fw.fa-sign-in] 模擬卡片
       button.btn.mt-2.btn-block.btn-info(@click="btnMfkey32v2") #[i.fa.fa-fw.fa-key] 破解金鑰
       .row.mx-n1.mt-2
-        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://shop143630998.world.taobao.com/") #[i.fa.fa-fw.fa-question-circle] 聯絡賣家
-        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/MAU73") #[i.fa.fa-fw.fa-shopping-cart] 購買網頁
+        .col.px-1: button.btn.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號
+        .col.px-1: button.btn.btn-block.btn-primary(@click="btnSetDetector") #[i.fa.fa-fw.fa-sign-in] 模擬卡號
+      .row.mx-n1.mt-2
+        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://shop143630998.world.taobao.com/") #[i.fa.fa-fw.fa-shopping-cart] 店舖頁面
+        .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/MAU73") #[i.fa.fa-fw.fa-tag] 購買網頁
+    .form-group
+      label 使用教學及常見問題
+      .text-muted.mt-2: small 請先把原卡放在 PN532 上，按下「讀取卡號」來取得原卡的卡號，然後把原卡移開並把「單卡嗅探王」放到 PN532 上，按下「模擬卡號」來設定卡號。模擬完成後，請把「單卡嗅探王」拿去門禁讀卡機刷卡三次以上，然後再把「單卡嗅探王」放在 PN532 上，按下「破解金鑰」應該就可以取得金鑰了。
+      .text-muted.mt-2: small 開發者所取得的「單卡嗅探王」硬體，能夠記錄 2 次刷卡記錄，如果已經記錄過 2 次刷卡記錄，你就需要把「單卡嗅探王」放到 PN532 上，再次按下「模擬卡號」按鈕才能重新記錄。
+      .text-muted.mt-2: small 如果沒有辦法成功使用這種方式取得卡片金鑰，代表讀卡機有針對此種攻擊方式進行防範，這時候你會需要改用有卡嗅探的方式才能取得卡片金鑰。
 
 block script
   script.
@@ -84,7 +96,7 @@ block script
       data: {
         h: {
           adapter: 'ble',
-          key: '',
+          detect: null,
           mode: 0,
           uid: '01020304',
         },
@@ -120,9 +132,9 @@ block script
         async btnSetDetector () {
           const { pn532 } = this
           try {
-            this.showLoading('正在模擬...', '若耗時過久請重新整理網頁。')
             const uid = Packet.fromHex(this.h.uid)
             if (!Packet.isLen(uid, 4)) throw new TypeError('卡號 uid 有誤')
+            this.showLoading('正在模擬...', '若耗時過久請重新整理網頁。')
             try {
               await pn532.$hf14a.inListPassiveTarget()
               await pn532.inSelect({ tg: 1 })
@@ -152,29 +164,47 @@ block script
           const { pn532 } = this
           try {
             this.showLoading('正在破解...', '若耗時過久請重新整理網頁。')
-            const body = { uid: this.h.uid, nt0: '00000000', nt1: '00000000' }
+            const records = []
+            let card
             try {
-              const card = _.first(await pn532.$hf14a.inListPassiveTarget())
-              body.uid = card.uid.hex
+              card = _.first(await pn532.$hf14a.inListPassiveTarget())
               await pn532.inSelect({ tg: 1 })
               await pn532.inCommunicateThru({ data: Packet.fromHex('E000') }) // ATS
               const { data: data1 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0A0000AE000300') })
-              if (data1[2] < 2) throw new Error('刷卡次數不夠，請再多刷卡幾次')
-              const { data: data2 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0B0000AE000000') })
-              ;[body.nr0, body.ar0] = _.times(2, i => data2.subarray(i * 4 + 4, i * 4 + 8).hex)
-              const { data: data3 } = await pn532.inCommunicateThru({ data: Packet.fromHex('0A0000AE000100') })
-              ;[body.nr1, body.ar1] = _.times(2, i => data3.subarray(i * 4 + 4, i * 4 + 8).hex)
+              if (data1[2] < 2) throw new Error('刷卡次數不夠。請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。')
+              for (let i = 0; i < 2; i++) {
+                const pack2 = Packet.fromHex(['0B0000AE000000', '0A0000AE000100'][i])
+                const { data: data2 } = await pn532.inCommunicateThru({ data: pack2 })
+                records.push({
+                  block: data2[3],
+                  sector: data2[3] >>> 2,
+                  type: +(data2[2] === 0x61),
+                  nt: '00000000',
+                  nr: data2.subarray(4, 8).hex,
+                  ar: data2.subarray(8, 12).hex,
+                })
+              }
             } finally {
               if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
             }
-            this.h.key = await this.apiMfkey32v2(body)
+            if (records[0].sector !== records[1].sector) throw new Error('刷卡記錄的區塊不同')
+            if (records[0].type !== records[1].type) throw new Error('刷卡記錄的金鑰類型不同')
+            this.showLoading('正在破解...', `正在計算金鑰`)
+            this.$set(this.h, 'detect', {
+              key: await this.apiMfkey32v2(card.uid.hex, records[0], records[1]),
+              sector: records[0].sector,
+              type: records[0].type,
+              uid: card.uid.hex,
+            })
             await Swal.fire({ icon: 'success', title: '破解成功', text: `卡片金鑰為 ${this.h.key}` })
           } catch (err) {
             console.error(err)
-            await Swal.fire({ icon: 'error', title: '模擬失敗', text: err.message })
+            await Swal.fire({ icon: 'error', title: '破解失敗', text: err.message })
           }
         },
-        async apiMfkey32v2 ({ uid, nt0, nr0, ar0, nt1, nr1, ar1 }) {
+        async apiMfkey32v2 (uid, r0, r1) {
+          const { nt: nt0, nr: nr0, ar: ar0 } = r0
+          const { nt: nt1, nr: nr1, ar: ar1 } = r1
           const res = await fetch('https://mfkey-ybtjbo45iq-de.a.run.app/mfkey32v2', {
             body: JSON.stringify({ uid, nt0, nr0, ar0, nt1, nr1, ar1 }),
             cache: 'no-cache',

@@ -349,6 +349,16 @@ export default class Pn532Hf14a {
       }
     }
 
+    /**
+     * Check sector key of Mifare card.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.sectorMax How many sectors to read from target.
+     * @param {Packet[]} args.keys Array of 6 bytes keys to be check.
+     * @returns {Promise<Packet[]>} Resolve with array of sector key As and key Bs. Odd Index (`0`, `2`, `4`...) are Key A, even index (`1`, `3`, `5`...) are Key B. If the sector key is not found, the value will be `null`.
+     */
     async function mfCheckKeys ({ sectorMax = 16, keys } = {}) {
       try {
         keys = mfKeysUniq(keys)
@@ -535,8 +545,7 @@ export default class Pn532Hf14a {
       try {
         const oldUid = (await inListPassiveTarget())?.[0]?.uid
         if (!oldUid) throw new Error('Failed to select card')
-        const data = Packet.merge(uid, Packet.fromHex('00080400000000000000BEAF'))
-        for (const b of uid) data[4] ^= b // bcc
+        const data = Packet.merge(uid, new Packet([uid.xor]), Packet.fromHex('080400000000000000BEAF'))
         if (Packet.isLen(sak, 1)) data.set(sak, 5)
         if (Packet.isLen(atqa, 2)) data.set(atqa.slice().reverse(), 6)
         let isSuccess = false
@@ -1062,8 +1071,7 @@ export default class Pn532Hf14a {
      */
     async function mfSetUidGen1a ({ atqa = null, sak = null, uid } = {}) {
       if (!Packet.isLen(uid, 4)) throw new TypeError('invalid 4 bytes uid')
-      const data = Packet.merge(uid, Packet.fromHex('00080400000000000000BEAF'))
-      for (const b of uid) data[4] ^= b // bcc
+      const data = Packet.merge(uid, new Packet([uid.xor]), Packet.fromHex('080400000000000000BEAF'))
       if (Packet.isLen(sak, 1)) data.set(sak, 5)
       if (Packet.isLen(atqa, 2)) data.set(atqa.slice().reverse(), 6)
       await mfWriteBlockGen1a({ block: 0, data })

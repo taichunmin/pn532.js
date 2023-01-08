@@ -29,11 +29,16 @@ toc:
           URL: <http://taichunmin.idv.tw/pn532.js/m1-uid-scanner.html>
 
           This tools can scan UID of NFC Type A Tags via Web Bluetooth or Web Serial.
-      - name: Mifare Key Detector
+      - name: Key Detector for 北方智能卡
         description: |
-          URL: <http://taichunmin.idv.tw/pn532.js/mf-key-detector.html>
+          URL: <http://taichunmin.idv.tw/pn532.js/detector-shop143630998.html>
 
           This tools is only support supercard [單卡嗅探王](https://lihi1.com/MAU73). It can change uid and type of supercard, or do reader-only attack to recover key.
+      - name: Key Detector for 福睿
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/detector-furui.html>
+
+          This tools is only support supercard [福睿偵測卡](https://lihi1.com/0vzx7). It can change uid and type of supercard, or do reader-only attack to recover key.
   - name: other
     children:
       - Pn532Frame

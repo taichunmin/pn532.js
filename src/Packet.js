@@ -134,6 +134,17 @@ export default class Packet extends Uint8Array {
   }
 
   /**
+   * The xor value of every byte in the Packet.
+   * @example
+   * console.log(Packet.fromHex('01020304').xor)
+   * // 4
+   * @member {number}
+   */
+  get xor () {
+    return _.reduce(this, (xor, v) => xor ^ v, 0)
+  }
+
+  /**
    * hex string of the Packet
    * @example
    * console.log(Packet.fromHex('123456').hex)

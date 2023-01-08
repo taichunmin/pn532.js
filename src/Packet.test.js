@@ -132,6 +132,11 @@ test('Packet#chunk()', async () => {
   expect(actual[1].hex).toEqual('03')
 })
 
+test('Packet#xor', async () => {
+  const actual = Packet.fromHex('01020304').xor
+  expect(actual).toEqual(0x04)
+})
+
 test('Packet#hex', async () => {
   const actual = new Packet([0, 1, 2])
   expect(actual.hex).toEqual('000102')
