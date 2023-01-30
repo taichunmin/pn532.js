@@ -59,7 +59,7 @@ export default class Pn532WebbleAdapter {
     pn532.tx.readable.pipeTo(new WritableStream({ // no wait
       write: async chunk => {
         if (!me.charWrite) throw new Error('me.charWrite can not be null')
-        await me.charWrite.writeValueWithoutResponse(chunk.buffer)
+        await me.charWrite.writeValueWithResponse(chunk.buffer)
       },
     }, new CountQueuingStrategy({ highWaterMark: 1 })))
 

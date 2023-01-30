@@ -106,7 +106,7 @@ block script
             const { data, success } = await this.pn532.$hf14a.mfReadCardGen1a()
             if (_.sum(success) !== 64) {
               const failed = _.filter(_.map(success, (v, k) => [k, null][v]), _.isInteger)
-              if (!await this.confirm(`${failed.length} 個 block 讀取失敗，是否上傳記錄？`)) return
+              if (!await this.confirm(`${failed.length} 個 block 讀取失敗，是否上傳記錄？`, '繼續', '取消')) return
             }
             await this.uploadGoogleForm({ ...card, data })
             await Swal.fire({ icon: 'success', title: '上傳成功' })
