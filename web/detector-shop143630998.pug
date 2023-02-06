@@ -38,7 +38,7 @@ block content
             option(value="1") S70CL1 (4k, 4 bytes UID)
         .input-group.input-group-sm.mb-2.was-validated
           .input-group-prepend: span.input-group-text.justify-content-center UID
-          input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, type="text", v-model="h.uid")
+          input.form-control(pattern="[\\dA-Fa-f]{8}", placeholder="請輸入 8 位數 16 進位的 UID", required, v-model="h.uid")
           .input-group-append: button.btn.btn-outline-danger(type="button", @click="h.uid = ''") 清空
         .row.mx-n1
           .col.px-1: button.btn.btn-block.btn-success(@click="btnReadDetector") #[i.fa.fa-fw.fa-sign-out] 讀取卡號

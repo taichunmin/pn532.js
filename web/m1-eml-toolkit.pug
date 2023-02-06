@@ -40,10 +40,10 @@ block content
         .col.px-1: button.btn.btn-block.btn-danger(type="button", @click="btnWriteGen2") 寫入資料
     .form-group
       label.mb-1 Common
-      button.btn.mt-1.btn-block.btn-primary(@click="btnEditEml") 編輯卡片資料
-      button.btn.mt-1.btn-block.btn-info(@click="btnEditMfkeys") 編輯卡片金鑰
-      button.btn.mt-1.btn-block.btn-outline-dark(@click="btnLoadKeysFromEml") 從卡片資料提取金鑰
-      button.btn.mt-1.btn-block.btn-outline-warning(@click="btnSetBlankEml") 重設為空白卡片資料
+      button.btn.mt-1.btn-block.btn-primary(type="button", @click="btnEditEml") 編輯卡片資料
+      button.btn.mt-1.btn-block.btn-info(type="button", @click="btnEditMfkeys") 編輯卡片金鑰
+      button.btn.mt-1.btn-block.btn-outline-dark(type="button", @click="btnLoadKeysFromEml") 從卡片資料提取金鑰
+      button.btn.mt-1.btn-block.btn-outline-warning(type="button", @click="btnSetBlankEml") 重設為空白卡片資料
     .modal.fade(data-backdrop="static", data-keyboard="false", tabindex="-1", ref="exportimport")
       .modal-dialog.modal-dialog-centered.modal-xl.align-items-stretch
         .modal-content

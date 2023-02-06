@@ -18,13 +18,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const log = createLogger('app:index')
 
 export const build = async () => {
-  const sitemapUrls = []
-
   const PUG_OPTIONS = {
     basedir: path.resolve(__dirname),
     baseurl: getBaseurl(),
     NODE_ENV: getenv('NODE_ENV', 'production'),
   }
+
+  const sitemapUrls = [
+    new URL('./docs/', PUG_OPTIONS.baseurl).href,
+  ]
 
   const htmlMinifierOptions = {
     caseSensitive: true,

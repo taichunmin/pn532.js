@@ -1,0 +1,110 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'mfkey'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}mf-key-detector.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .letter-spacing-n1px
+        letter-spacing: -1px
+      .input-group-prepend > .input-group-text
+        width: 60px
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h3.mb-3.text-center= title
+    .row
+      .col.col-md-6: .card.mb-3
+        .card-header #[i.fa.fa-fw.fa-star-o] mfkey32v2
+        .card-body
+          .input-group.input-group-sm.mb-2.was-validated(v-for="k of ['uid', 'nt0', 'nr0', 'ar0', 'nt1', 'nr1', 'ar1']")
+            .input-group-prepend: span.input-group-text.justify-content-center {{ k }}
+            input.form-control(pattern="[\\dA-Fa-f]{8}", :placeholder="`請輸入 8 位數 16 進位的 ${k}`", required, v-model="mfkey32v2[k]", maxlength="8")
+            .input-group-append: button.btn.btn-outline-danger(type="button", @click="mfkey32v2[k] = ''") 清空
+          .input-group.input-group-sm.mb-2.was-validated
+            .input-group-prepend: span.input-group-text.justify-content-center key
+            input.form-control(readonly, :value="mfkey32v2.key")
+            .input-group-append: button.btn.btn-outline-success(type="button", @click="btnCopy(mfkey32v2.key)") 複製
+          button.btn.mt-3.btn-block.btn-success(@click="btnMfkey32v2") #[i.fa.fa-fw.fa-key] 破解金鑰
+      .col.col-md-6: .card.mb-3
+        .card-header #[i.fa.fa-fw.fa-star-o] mfkey64
+        .card-body
+          .input-group.input-group-sm.mb-2.was-validated(v-for="k of ['uid', 'nt', 'nr', 'ar', 'at']")
+            .input-group-prepend: span.input-group-text.justify-content-center {{ k }}
+            input.form-control(pattern="[\\dA-Fa-f]{8}", :placeholder="`請輸入 8 位數 16 進位的 ${k}`", required, v-model="mfkey64[k]", maxlength="8")
+            .input-group-append: button.btn.btn-outline-danger(type="button", @click="mfkey64[k] = ''") 清空
+          .input-group.input-group-sm.mb-2.was-validated
+            .input-group-prepend: span.input-group-text.justify-content-center key
+            input.form-control(readonly, :value="mfkey64.key")
+            .input-group-append: button.btn.btn-outline-success(type="button", @click="btnCopy(mfkey64.key)") 複製
+          button.btn.mt-3.btn-block.btn-success(@click="btnMfkey64") #[i.fa.fa-fw.fa-key] 破解金鑰
+
+block script
+  script.
+    const { Crypto1, Pn532: { utils: Pn532utils } } = window
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        mfkey32v2: { uid: '', nt0: '', nr0: '', ar0: '', nt1: '', nr1: '', ar1: '', key: '' },
+        mfkey64: { uid: '', nt: '', nr: '', ar: '', at: '', key: '' },
+      },
+      methods: {
+        async btnMfkey32v2 () {
+          try {
+            for (let k of ['uid', 'nt0', 'nr0', 'ar0', 'nt1', 'nr1', 'ar1']) {
+              if (!/^[0-9a-fA-F]{8}$/.test(this.mfkey32v2[k])) throw new Error(`欄位 ${k} 格式錯誤`)
+            }
+            this.showLoading('正在破解...', '正在計算金鑰')
+            await Pn532utils.sleep(100)
+            this.mfkey32v2.key = Crypto1.mfkey32v2({ ...this.mfkey32v2 }).hex
+            await Swal.fire({ icon: 'success', title: '破解成功', text: `金鑰為 ${this.mfkey32v2.key}` })
+          } catch (err) {
+            await Swal.fire({ icon: 'error', title: '破解失敗', text: err.message })
+          }
+        },
+        async btnMfkey64 () {
+          try {
+            for (let k of ['uid', 'nt', 'nr', 'ar', 'at']) {
+              if (!/^[0-9a-fA-F]{8}$/.test(this.mfkey64[k])) throw new Error(`欄位 ${k} 格式錯誤`)
+            }
+            this.showLoading('正在破解...', '正在計算金鑰')
+            await Pn532utils.sleep(100)
+            this.mfkey64.key = Crypto1.mfkey64({ ...this.mfkey64 }).hex
+            await Swal.fire({ icon: 'success', title: '破解成功', text: `金鑰為 ${this.mfkey64.key}` })
+          } catch (err) {
+            await Swal.fire({ icon: 'error', title: '破解失敗', text: err.message })
+          }
+        },
+        async btnCopy (text, container = null) {
+          if (!container) container = document.body
+          const dom = document.createElement('textarea')
+          dom.value = text
+          container.appendChild(dom)
+          dom.select()
+          dom.setSelectionRange(0, 1e6) // For mobile devices
+          document.execCommand('copy')
+          container.removeChild(dom)
+          await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })

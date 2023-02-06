@@ -30,6 +30,11 @@ toc:
           URL: <http://taichunmin.idv.tw/pn532.js/m1-uid-scanner.html>
 
           This tools can scan UID of NFC Type A Tags via Web Bluetooth or Web Serial.
+      - name: mfkey32v2 and mfkey64
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/mfkey.html>
+
+          An online tool for mfkey32v2 and mfkey64 that recover mifare key from encrypted data obtained from reader-only attack or sniff communications between reader and card.
       - name: Key Detector for 北方智能卡
         description: |
           URL: <http://taichunmin.idv.tw/pn532.js/detector-shop143630998.html>
