@@ -4,7 +4,7 @@
  * import Crypto1 from 'pn532.js/Crypto1'
  */
 import _ from 'lodash'
-import { Packet } from './main'
+import Packet from './Packet.js'
 
 const LF_POLY_ODD = 0x29CE5C
 const LF_POLY_EVEN = 0x870804

@@ -1,15 +1,16 @@
 {
-  "name": "pn532.js",
-  "version": "0.1.14",
   "author": "taichunmin <taichunmin@gmail.com>",
   "browser": "dist/pn532.min.js",
   "description": "pn532.js is a JavaScript library for PN532 base on Web Bluetooth and Web Serial.",
   "homepage": "https://taichunmin.idv.tw/pn532.js/docs/",
   "jsdelivr": "dist/pn532.min.js",
   "license": "MIT",
-  "main": "src/main.js",
+  "main": "dist/main.js",
+  "module": "src/main.js",
+  "name": "pn532.js",
   "type": "module",
   "unpkg": "dist/pn532.min.js",
+  "version": "0.1.15",
   "bugs": {
     "url": "https://github.com/taichunmin/pn532.js/issues"
   },
@@ -49,9 +50,39 @@
     "node-watch": "^0.7.3",
     "pug": "^3.0.2",
     "rollup": "^3.14.0",
-    "rollup-plugin-version-injector": "^1.3.3",
     "serve-static": "^1.15.0",
     "web-streams-polyfill": "^3.2.1"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "default": "./dist/main.js"
+    },
+    "./Crypto1.js": {
+      "import": "./src/Crypto1.js",
+      "default": "./dist/Crypto1.js"
+    },
+    "./Packet.js": {
+      "import": "./src/Packet.js",
+      "default": "./dist/Packet.js"
+    },
+    "./plugin/Hf14a.js": {
+      "import": "./src/plugin/Hf14a.js",
+      "default": "./dist/plugin/Hf14a.js"
+    },
+    "./plugin/LoggerRxTx.js": {
+      "import": "./src/plugin/LoggerRxTx.js",
+      "default": "./dist/plugin/LoggerRxTx.js"
+    },
+    "./plugin/WebbleAdapter.js": {
+      "import": "./src/plugin/WebbleAdapter.js",
+      "default": "./dist/plugin/WebbleAdapter.js"
+    },
+    "./plugin/WebserialAdapter.js": {
+      "import": "./src/plugin/WebserialAdapter.js",
+      "default": "./dist/plugin/WebserialAdapter.js"
+    }
   },
   "keywords": [
     "13.56MHz",

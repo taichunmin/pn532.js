@@ -81,4 +81,7 @@ export const build = async () => {
       console.error(err)
     }
   }
+
+  // package.json for cjs
+  await fsPromises.writeFile(path.resolve(__dirname, 'dist/package.json'), JSON.stringify({ type: 'commonjs' }, null, 2))
 }

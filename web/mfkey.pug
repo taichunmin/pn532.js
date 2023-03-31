@@ -62,7 +62,7 @@ block script
       methods: {
         async btnMfkey32v2 () {
           try {
-            for (let k of ['uid', 'nt0', 'nr0', 'ar0', 'nt1', 'nr1', 'ar1']) {
+            for (const k of ['uid', 'nt0', 'nr0', 'ar0', 'nt1', 'nr1', 'ar1']) {
               if (!/^[0-9a-fA-F]{8}$/.test(this.mfkey32v2[k])) throw new Error(`欄位 ${k} 格式錯誤`)
             }
             this.showLoading('正在破解...', '正在計算金鑰')
@@ -75,7 +75,7 @@ block script
         },
         async btnMfkey64 () {
           try {
-            for (let k of ['uid', 'nt', 'nr', 'ar', 'at']) {
+            for (const k of ['uid', 'nt', 'nr', 'ar', 'at']) {
               if (!/^[0-9a-fA-F]{8}$/.test(this.mfkey64[k])) throw new Error(`欄位 ${k} 格式錯誤`)
             }
             this.showLoading('正在破解...', '正在計算金鑰')

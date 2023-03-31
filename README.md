@@ -42,6 +42,42 @@ See Mtools Tec's [How to make PN532 work on Bluetooth](https://shop.mtoolstec.co
 
 ## Installing
 
+### Package manager
+
+Using npm:
+
+```bash
+$ npm install pn532.js
+```
+
+Using yarn:
+
+```bash
+$ yarn add pn532.js
+```
+
+Once the package is installed, you can import the library using `import` or `require`:
+
+```js
+// import
+import { Pn532, Packet, utils: Pn532utils } from 'pn532.js'
+import Crypto1 from 'pn532.js/Crypto1.js'
+import LoggerRxTx from 'pn532.js/plugin/LoggerRxTx.js'
+import Pn532Hf14a from 'pn532.js/plugin/Hf14a.js'
+import Pn532WebbleAdapter from 'pn532.js/plugin/WebbleAdapter.js'
+import Pn532WebserialAdapter from 'pn532.js/plugin/WebserialAdapter.js'
+
+// require
+const { Pn532, Packet, utils: Pn532utils } = require('pn532.js')
+const Crypto1 = require('pn532.js/Crypto1.js')
+const LoggerRxTx = require('pn532.js/plugin/LoggerRxTx.js')
+const Pn532Hf14a = require('pn532.js/plugin/Hf14a.js')
+const Pn532WebbleAdapter = require('pn532.js/plugin/WebbleAdapter.js')
+const Pn532WebserialAdapter = require('pn532.js/plugin/WebserialAdapter.js')
+```
+
+### CDN
+
 Using jsDelivr CDN:
 
 ```html
@@ -60,6 +96,21 @@ Using jsDelivr CDN:
 <script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebbleAdapter.min.js"></script>
 <!-- PN532.js WebserialAdapter plugin -->
 <script src="https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebserialAdapter.min.js"></script>
+```
+
+After the `script` tag, you can use the `PN532.js` as following:
+
+```js
+// setup
+const {
+  _, // lodash: https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js
+  Pn532: { Pn532, Packet, utils: Pn532utils },
+  Crypto1,
+  Pn532Hf14a,
+  Pn532LoggerRxTx,
+  Pn532WebbleAdapter,
+  Pn532WebserialAdapter,
+} = window
 ```
 
 ## Getting Started

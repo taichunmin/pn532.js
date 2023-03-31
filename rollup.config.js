@@ -1,21 +1,22 @@
 import _ from 'lodash'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import commonjs from '@rollup/plugin-commonjs'
 import json from '@rollup/plugin-json'
 import resolve from '@rollup/plugin-node-resolve'
 import terser from '@rollup/plugin-terser'
-import versionInjector from 'rollup-plugin-version-injector'
+
+const require = createRequire(import.meta.url)
+const pkg = require('./package.json')
+const externalDependencies = _.keys(_.omit(pkg.dependencies, ['web-serial-polyfill']))
 
 // good rollup example: https://github.com/MattiasBuelens/web-streams-polyfill/blob/master/rollup.config.js
 const configs = [
   // src/main.js
   {
     input: 'src/main.js',
-    plugins: [json(), resolve(), commonjs(), versionInjector({
-      injectInComments: false,
-      logLevel: 'error',
-    })],
-    external: ['lodash'],
+    plugins: [json(), resolve({ browser: true }), commonjs()],
+    external: externalDependencies,
     output: _.times(2, isMin => ({
       file: 'dist/pn532.js',
       format: 'umd',
@@ -33,10 +34,10 @@ const configs = [
   // src/Crypto1.js
   {
     input: 'src/Crypto1.js',
-    plugins: [json(), resolve(), commonjs()],
+    plugins: [json(), resolve({ browser: true }), commonjs()],
     external: [
-      'lodash',
-      fileURLToPath(new URL('src/main.js', import.meta.url)),
+      ...externalDependencies,
+      fileURLToPath(new URL('src/Packet.js', import.meta.url)),
     ],
     output: _.times(2, isMin => ({
       file: 'dist/Crypto1.js',
@@ -44,7 +45,7 @@ const configs = [
       name: 'Crypto1',
       globals: {
         lodash: '_',
-        [fileURLToPath(new URL('src/main', import.meta.url))]: 'Pn532',
+        [fileURLToPath(new URL('src/Packet.js', import.meta.url))]: 'Pn532.Packet',
       },
       ...(!isMin ? {} : { // for minify
         file: 'dist/Crypto1.min.js',
@@ -53,11 +54,30 @@ const configs = [
     })),
   },
 
+  // src/Crypto1.js
+  {
+    input: 'src/Packet.js',
+    plugins: [json(), resolve({ browser: true }), commonjs()],
+    external: externalDependencies,
+    output: _.times(2, isMin => ({
+      file: 'dist/Packet.js',
+      format: 'umd',
+      name: 'Packet',
+      globals: {
+        lodash: '_',
+      },
+      ...(!isMin ? {} : { // for minify
+        file: 'dist/Packet.min.js',
+        plugins: [terser()],
+      }),
+    })),
+  },
+
   // plugins
   ..._.map(['Hf14a', 'LoggerRxTx', 'WebbleAdapter', 'WebserialAdapter'], plugin => ({
     input: `src/plugin/${plugin}.js`,
-    plugins: [json(), resolve(), commonjs()],
-    external: ['lodash'],
+    plugins: [json(), resolve({ browser: true }), commonjs()],
+    external: externalDependencies,
     output: _.times(2, isMin => ({
       file: `dist/plugin/${plugin}.js`,
       format: 'umd',
