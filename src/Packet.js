@@ -106,8 +106,10 @@ export default class Packet extends Uint8Array {
   }
 
   /**
-   * Returns a new Packet object merge from two or more Packets
-   * @param  {...Packet} packs two or more Packets to be merged
+   * Returns a new `Packet` which is the result of concatenating all the `Packet` instances in the `packs` together.
+   *
+   * If the `packs` has no items, then a new zero-length `Packet` is returned.
+   * @param  {...Packet} packs List of `Packet` or `Uint8Array` instances to concatenate.
    * @example
    * const pack = Packet.merge(Packet.fromUtf8('Hello '), Packet.fromUtf8('world.'))
    * @returns {Packet} a new Packet object merge from two or more Packets
@@ -232,6 +234,15 @@ export default class Packet extends Uint8Array {
     const tmp2 = (this.length + 2) % 3 - 2
     return (tmp2 ? tmp1.slice(0, tmp2) : tmp1).join('')
   }
+
+  /**
+   * The `byteOffset` of the `Packets` underlying `ArrayBuffer` object.
+   * @example
+   * console.log(Packet.fromHex('616263').offset)
+   * // 0
+   * @member {number}
+   */
+  get offset () { return this.byteOffset }
 
   /**
    * the member function will be invoked when using `JSON.stringify`

@@ -31,32 +31,12 @@ export default class Pn532WebserialAdapter {
   _isOpen = false
   name = 'adapter'
   port = null
-  reader = null
 
   install (context, pluginOption) {
     const { pn532, utils } = context
     const me = this
 
     if (pn532.$adapter) throw new Error('adapter already exists')
-
-    // register TransformStream
-    pn532.tx = new TransformStream({
-      flush: async controller => {
-        await disconnect()
-        controller.terminate()
-      },
-      transform: async (pack, controller) => {
-        controller.enqueue(pack)
-      },
-    })
-    pn532.tx.readable.pipeTo(new WritableStream({ // no wait
-      write: async chunk => {
-        if (!me.port) throw new Error('me.port can not be null')
-        const writer = me.port.writable.getWriter()
-        await writer.write(chunk)
-        writer.releaseLock()
-      },
-    }, new CountQueuingStrategy({ highWaterMark: 1 })))
 
     function getSerial () {
       return navigator?.serial ?? serialPolyfill
@@ -84,16 +64,6 @@ export default class Pn532WebserialAdapter {
       return me._isOpen
     }
 
-    async function disconnected () {
-      me._isOpen = false
-      me.reader = null
-      if (me.port) {
-        await me.port.close().catch(console.error)
-        me.port = null
-      }
-      utils.logTime('device disconnected')
-    }
-
     /**
      * Disconnect the connection of adapter.
      * @memberof Pn532WebserialAdapter
@@ -102,32 +72,14 @@ export default class Pn532WebserialAdapter {
      * @returns {Promise<null>} Resolve after finished.
      */
     async function disconnect () {
-      if (me.reader) await me.reader.cancel()
+      if (_.isNil(me.port)) return
+      await me.port.close()
     }
 
-    async function startReadLoop () {
-      // https://github.com/GoogleChromeLabs/serial-terminal/blob/main/src/index.ts
-      if (me?.port?.readable) {
-        try {
-          me.reader = me.port.readable.getReader()
-
-          while (true) {
-            const { value, done } = await me.reader.read()
-            if (value) {
-              const writer = pn532.rx.writable.getWriter()
-              await writer.write(value)
-              writer.releaseLock()
-            }
-            if (done) break
-          }
-        } catch (err) {
-          console.error(err)
-        } finally {
-          if (me.reader) me.reader.releaseLock()
-        }
-      }
-
-      disconnected()
+    async function disconnected () {
+      me._isOpen = false
+      if (me.port) me.port = null
+      utils.logTime('device disconnected')
     }
 
     /**
@@ -149,8 +101,10 @@ export default class Pn532WebserialAdapter {
         utils.logTime(`port selected, usbVendorId = ${info.usbVendorId}, usbProductId = ${info.usbProductId}`)
 
         await me.port.open({ baudRate: 115200 })
+        pn532.tx = me.port
+        me.port.readable.pipeTo(pn532.rx.writable)
+        me.port.addEventListener('disconnect', disconnected)
         me._isOpen = true
-        startReadLoop() // no wait
 
         await pn532.sendCommandWakeup()
         await pn532.resetSettings()

@@ -20,6 +20,10 @@
 
 ## Browser & OS compatibility
 
+### SerialPort (Node.js)
+
+[Node SerialPort](https://serialport.io/docs/) is a JavaScript library for connecting to serial ports that works in NodeJS and Electron.
+
 ### Web Bluetooth API
 
 A subset of the Web Bluetooth API is available in ChromeOS, Chrome for Android 6.0, Mac (Chrome 56) and Windows 10 (Chrome 70). See MDN's [Browser compatibility](https://developer.mozilla.org/docs/Web/API/Web_Bluetooth_API#Browser_compatibility) table for more information.
@@ -48,12 +52,18 @@ Using npm:
 
 ```bash
 $ npm install pn532.js
+
+# Also install SerialPort if you want to run in node.js
+$ npm install serialport
 ```
 
 Using yarn:
 
 ```bash
 $ yarn add pn532.js
+
+# Also install SerialPort if you want to run in node.js
+$ yarn add serialport
 ```
 
 Once the package is installed, you can import the library using `import` or `require`:
@@ -138,6 +148,12 @@ console.log(JSON.stringify(await pn532usb.getFirmwareVersion())) // {"firmware":
 // Pn532WebbleAdapter
 const pn532ble = new Pn532()
 pn532ble.use(new Pn532WebbleAdapter()) // A pn532 instance must register exactly one adapter plugin
+console.log(JSON.stringify(await pn532ble.getFirmwareVersion())) // {"firmware":"1.6","ic":"PN532","iso14443a":true,"iso14443b":true,"iso18092":true}
+
+// Pn532SerialPortAdapter
+import Pn532SerialPortAdapter from 'pn532.js/plugin/SerialPortAdapter.js'
+// Run serialport-list to list port, see https://serialport.io/docs/bin-list
+pn532.use(new Pn532SerialPortAdapter(), { path: '/dev/tty.usbserial-120' })
 console.log(JSON.stringify(await pn532ble.getFirmwareVersion())) // {"firmware":"1.6","ic":"PN532","iso14443a":true,"iso14443b":true,"iso18092":true}
 ```
 

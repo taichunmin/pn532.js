@@ -10,7 +10,7 @@
   "name": "pn532.js",
   "type": "module",
   "unpkg": "dist/pn532.min.js",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "bugs": {
     "url": "https://github.com/taichunmin/pn532.js/issues"
   },
@@ -22,7 +22,6 @@
     }
   ],
   "dependencies": {
-    "lodash": "^4.17.21",
     "web-serial-polyfill": "^1.0.14"
   },
   "devDependencies": {
@@ -34,22 +33,25 @@
     "dayjs": "^1.11.7",
     "documentation": "^14.0.1",
     "dotenv": "^16.0.3",
-    "eslint": "^8.33.0",
+    "eslint": "^8.37.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-pug": "^1.2.5",
     "fast-glob": "^3.2.12",
     "finalhandler": "^1.2.0",
     "html-minifier": "^4.0.0",
-    "jest": "^29.4.1",
+    "jest": "^29.5.0",
     "jstransformer-sass": "^1.0.0",
+    "jstransformer-scss": "git+https://github.com/taichunmin/jstransformer-scss.git",
     "livereload": "^0.9.3",
+    "lodash": "^4.17.21",
     "node-watch": "^0.7.3",
     "pug": "^3.0.2",
-    "rollup": "^3.14.0",
+    "rollup": "^3.20.2",
+    "serialport": "^10.5.0",
     "serve-static": "^1.15.0",
     "web-streams-polyfill": "^3.2.1"
   },
@@ -70,6 +72,10 @@
     "./plugin/Hf14a.js": {
       "import": "./src/plugin/Hf14a.js",
       "default": "./dist/plugin/Hf14a.js"
+    },
+    "./plugin/SerialPortAdapter.js": {
+      "import": "./src/plugin/SerialPortAdapter.js",
+      "default": "./dist/plugin/SerialPortAdapter.js"
     },
     "./plugin/LoggerRxTx.js": {
       "import": "./src/plugin/LoggerRxTx.js",
@@ -101,7 +107,7 @@
     "url": "https://github.com/taichunmin/pn532.js.git"
   },
   "resolutions": {
-    "**/jstransformer-scss": "taichunmin/jstransformer-scss"
+    "**/jstransformer-scss": "git+https://github.com/taichunmin/jstransformer-scss.git"
   },
   "scripts": {
     "build": "cross-env DEBUG=app:* node ./index.js && yarn docjs",
