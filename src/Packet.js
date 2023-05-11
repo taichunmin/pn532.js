@@ -5,7 +5,10 @@
  */
 import _ from 'lodash'
 
-const BASE64URL_CHAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const BASE64URL_CHAR = _.transform('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_', (m, v, k) => {
+  k = _.toInteger(k)
+  m.set(k, v).set(v, k)
+}, new Map()).set('+', 62).set(62, '+').set('/', 63).set(63, '/')
 
 /**
  * The Packet class extends Uint8Array, contains some member function of DataView and add some helper function.
@@ -63,6 +66,32 @@ export default class Packet extends Uint8Array {
     for (let i = 0; i < pack.length; i++) pack[i] = parseInt(hex.substr(i << 1, 2), 16)
     if (reverse) pack.reverse()
     return pack
+  }
+
+  /**
+   * Returns a new Packet object initialized from a base64 or base64url string.
+   * @param {!string} base64 String with base64 or base64url encoding.
+   * @example
+   * console.log(Packet.fromBase64('AA==').base64url) // AA
+   * @returns {Packet} a new Packet object initialized from a base64 or base64url string.
+   */
+  static fromBase64 (base64) {
+    base64 = base64.replace(/[^A-Za-z0-9/_+-]/g, '')
+    const tmp1 = base64.length
+    const tmp2 = base64.length + 3
+    base64 = `${base64}AAA`.slice(0, tmp2 - tmp2 % 4)
+    const pack = new Packet(base64.length * 3 >>> 2)
+    let parsedLen = 0
+    for (let i = 0; i < base64.length; i++) {
+      const u24 = (BASE64URL_CHAR.get(base64[i]) << 18) +
+        (BASE64URL_CHAR.get(base64[i + 1]) << 12) +
+        (BASE64URL_CHAR.get(base64[i + 2]) << 6) +
+        BASE64URL_CHAR.get(base64[i + 3])
+      pack[parsedLen++] = (u24 >>> 16) & 0xFF
+      pack[parsedLen++] = (u24 >>> 8) & 0xFF
+      pack[parsedLen++] = (u24 >>> 0) & 0xFF
+    }
+    return tmp1 < base64.length ? pack.subarray(0, tmp1 - base64.length) : pack
   }
 
   /**
@@ -188,13 +217,20 @@ export default class Packet extends Uint8Array {
    * @member {string}
    */
   get base64url () {
-    const tmp = []
+    const tmp1 = []
     for (let i = 0; i < this.length; i += 3) {
-      let u24 = 0
-      for (let j = 0; j < 3; j++) u24 |= ((i + j) < this.length ? this[i + j] : 0) << (16 - j * 8)
-      tmp.push(_.times(Math.min(this.length - i + 1, 4), j => BASE64URL_CHAR[(u24 >>> (18 - 6 * j)) & 0x3F]).join(''))
+      const u24 = (this[i] << 16) +
+        ((i + 1 < this.length ? this[i + 1] : 0) << 8) +
+        (i + 2 < this.length ? this[i + 2] : 0)
+      tmp1.push(...[
+        BASE64URL_CHAR.get(u24 >>> 18 & 0x3F),
+        BASE64URL_CHAR.get(u24 >>> 12 & 0x3F),
+        BASE64URL_CHAR.get(u24 >>> 6 & 0x3F),
+        BASE64URL_CHAR.get(u24 >>> 0 & 0x3F),
+      ])
     }
-    return tmp.join('')
+    const tmp2 = (this.length + 2) % 3 - 2
+    return (tmp2 ? tmp1.slice(0, tmp2) : tmp1).join('')
   }
 
   /**

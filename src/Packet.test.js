@@ -223,6 +223,15 @@ test.each([
 })
 
 test.each([
+  ['MQ', 'MQ'],
+  ['MTI', 'MTI'],
+  ['MTIz', 'MTIz'],
+])('Packet.fromBase64(%j).base64url = %j', async (hex, expected) => {
+  const actual = Packet.fromBase64(hex).base64url
+  expect(actual).toEqual(expected)
+})
+
+test.each([
   ['12', 8],
   ['1234', 16],
   ['123456', 24],
