@@ -223,11 +223,24 @@ test.each([
 })
 
 test.each([
+  ['-_-_', '-_-_'],
+  ['+/+/', '-_-_'],
   ['MQ', 'MQ'],
   ['MTI', 'MTI'],
   ['MTIz', 'MTIz'],
 ])('Packet.fromBase64(%j).base64url = %j', async (hex, expected) => {
   const actual = Packet.fromBase64(hex).base64url
+  expect(actual).toEqual(expected)
+})
+
+test.each([
+  ['-_-_', '+/+/'],
+  ['+/+/', '+/+/'],
+  ['MQ', 'MQ=='],
+  ['MTI', 'MTI='],
+  ['MTIz', 'MTIz'],
+])('Packet.fromBase64(%j).base64 = %j', async (hex, expected) => {
+  const actual = Packet.fromBase64(hex).base64
   expect(actual).toEqual(expected)
 })
 

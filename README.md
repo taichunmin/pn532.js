@@ -74,6 +74,7 @@ import { Pn532, Packet, utils: Pn532utils } from 'pn532.js'
 import Crypto1 from 'pn532.js/Crypto1.js'
 import LoggerRxTx from 'pn532.js/plugin/LoggerRxTx.js'
 import Pn532Hf14a from 'pn532.js/plugin/Hf14a.js'
+import Pn532SerialPortAdapter from 'pn532.js/plugin/SerialPortAdapter.js'
 import Pn532WebbleAdapter from 'pn532.js/plugin/WebbleAdapter.js'
 import Pn532WebserialAdapter from 'pn532.js/plugin/WebserialAdapter.js'
 
@@ -82,6 +83,7 @@ const { Pn532, Packet, utils: Pn532utils } = require('pn532.js')
 const Crypto1 = require('pn532.js/Crypto1.js')
 const LoggerRxTx = require('pn532.js/plugin/LoggerRxTx.js')
 const Pn532Hf14a = require('pn532.js/plugin/Hf14a.js')
+const Pn532SerialPortAdapter = require('pn532.js/plugin/SerialPortAdapter.js')
 const Pn532WebbleAdapter = require('pn532.js/plugin/WebbleAdapter.js')
 const Pn532WebserialAdapter = require('pn532.js/plugin/WebserialAdapter.js')
 ```
@@ -153,8 +155,9 @@ console.log(JSON.stringify(await pn532ble.getFirmwareVersion())) // {"firmware":
 // Pn532SerialPortAdapter
 import Pn532SerialPortAdapter from 'pn532.js/plugin/SerialPortAdapter.js'
 // Run serialport-list to list port, see https://serialport.io/docs/bin-list
-pn532.use(new Pn532SerialPortAdapter(), { path: '/dev/tty.usbserial-120' })
-console.log(JSON.stringify(await pn532ble.getFirmwareVersion())) // {"firmware":"1.6","ic":"PN532","iso14443a":true,"iso14443b":true,"iso18092":true}
+const pn532node = new Pn532()
+pn532node.use(new Pn532SerialPortAdapter(), { path: '/dev/tty.usbserial-120' })
+console.log(JSON.stringify(await pn532node.getFirmwareVersion())) // {"firmware":"1.6","ic":"PN532","iso14443a":true,"iso14443b":true,"iso18092":true}
 ```
 
 ### Read UID, ATQA, SAK from Mifare Classic 1k

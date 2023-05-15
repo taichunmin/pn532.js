@@ -5,10 +5,15 @@
  */
 import _ from 'lodash'
 
+const BASE64_CHAR = _.transform('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', (m, v, k) => {
+  k = _.toInteger(k)
+  m.set(k, v).set(v, k)
+}, new Map()).set('-', 62).set('_', 63)
+
 const BASE64URL_CHAR = _.transform('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_', (m, v, k) => {
   k = _.toInteger(k)
   m.set(k, v).set(v, k)
-}, new Map()).set('+', 62).set(62, '+').set('/', 63).set(63, '/')
+}, new Map()).set('+', 62).set('/', 63)
 
 /**
  * The Packet class extends Uint8Array, contains some member function of DataView and add some helper function.
@@ -83,10 +88,10 @@ export default class Packet extends Uint8Array {
     const pack = new Packet(base64.length * 3 >>> 2)
     let parsedLen = 0
     for (let i = 0; i < base64.length; i++) {
-      const u24 = (BASE64URL_CHAR.get(base64[i]) << 18) +
-        (BASE64URL_CHAR.get(base64[i + 1]) << 12) +
-        (BASE64URL_CHAR.get(base64[i + 2]) << 6) +
-        BASE64URL_CHAR.get(base64[i + 3])
+      const u24 = (BASE64_CHAR.get(base64[i]) << 18) +
+        (BASE64_CHAR.get(base64[i + 1]) << 12) +
+        (BASE64_CHAR.get(base64[i + 2]) << 6) +
+        BASE64_CHAR.get(base64[i + 3])
       pack[parsedLen++] = (u24 >>> 16) & 0xFF
       pack[parsedLen++] = (u24 >>> 8) & 0xFF
       pack[parsedLen++] = (u24 >>> 0) & 0xFF
@@ -210,6 +215,31 @@ export default class Packet extends Uint8Array {
    * @member {string}
    */
   get utf8 () { return new TextDecoder().decode(this) }
+
+  /**
+   * base64 string of the Packet
+   * @example
+   * console.log(Packet.fromHex('616263').base64)
+   * // YWJj
+   * @member {string}
+   */
+  get base64 () {
+    const tmp1 = []
+    for (let i = 0; i < this.length; i += 3) {
+      const u24 = (this[i] << 16) +
+        ((i + 1 < this.length ? this[i + 1] : 0) << 8) +
+        (i + 2 < this.length ? this[i + 2] : 0)
+      tmp1.push(...[
+        BASE64_CHAR.get(u24 >>> 18 & 0x3F),
+        BASE64_CHAR.get(u24 >>> 12 & 0x3F),
+        BASE64_CHAR.get(u24 >>> 6 & 0x3F),
+        BASE64_CHAR.get(u24 >>> 0 & 0x3F),
+      ])
+    }
+    const tmp2 = tmp1.length + (this.length + 2) % 3 - 2
+    for (let i = tmp2; i < tmp1.length; i++) tmp1[i] = '='
+    return tmp1.join('')
+  }
 
   /**
    * base64url string of the Packet
