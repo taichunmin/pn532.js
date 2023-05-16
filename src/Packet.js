@@ -87,7 +87,7 @@ export default class Packet extends Uint8Array {
     base64 = `${base64}AAA`.slice(0, tmp2 - tmp2 % 4)
     const pack = new Packet(base64.length * 3 >>> 2)
     let parsedLen = 0
-    for (let i = 0; i < base64.length; i++) {
+    for (let i = 0; i < base64.length; i += 4) {
       const u24 = (BASE64_CHAR.get(base64[i]) << 18) +
         (BASE64_CHAR.get(base64[i + 1]) << 12) +
         (BASE64_CHAR.get(base64[i + 2]) << 6) +
