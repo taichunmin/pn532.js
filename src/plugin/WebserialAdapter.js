@@ -17,6 +17,9 @@ const WEBSERIAL_FILTERS = [
   { usbVendorId: 0x1A86, usbProductId: 0x5523 }, // 1A86: QinHeng Electronics, 5523: CH341 in serial mode, usb to serial port converter
   { usbVendorId: 0x1A86, usbProductId: 0x7522 }, // 1A86: QinHeng Electronics, 7522: CH340 serial converter
   { usbVendorId: 0x1A86, usbProductId: 0x7523 }, // 1A86: QinHeng Electronics, 7523: CH340 serial converter
+  { usbVendorId: 0x10C4, usbProductId: 0xEA60 }, // 10C4: Silicon Labs, EA60: CP210x UART Bridge
+  { usbVendorId: 0x10C4, usbProductId: 0xEA61 }, // 10C4: Silicon Labs, EA61: CP210x UART Bridge
+  { usbVendorId: 0x10C4, usbProductId: 0xEA63 }, // 10C4: Silicon Labs, EA63: CP210x UART Bridge
 ]
 
 /**

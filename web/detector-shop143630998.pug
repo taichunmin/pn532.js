@@ -49,7 +49,7 @@ block content
         .input-group.input-group-sm.mb-2.was-validated
           .input-group-prepend: span.input-group-text.justify-content-center Block
           input.form-control(type="number", min="0", max="63", required, v-model.number="h.block")
-          .input-group-append: span.input-group-text Sector {{ (h?.block ?? 0) >>> 2 }}
+          .input-group-append: span.input-group-text Sector {{ blockToSector(h?.block ?? 0) }}
         .input-group.input-group-sm.mb-2
           .input-group-prepend: span.input-group-text.justify-content-center KEY類型
           select.form-control.form-control-sm(v-model.number="h.isKb")
@@ -205,7 +205,7 @@ block script
                 const { data: data2 } = await pn532.inCommunicateThru({ data: pack2 })
                 records.push({
                   block: data2[3],
-                  sector: data2[3] >>> 2,
+                  sector: this.blockToSector(data2[3]),
                   isKb: +(data2[2] === 0x61),
                   nt: 0,
                   nr: data2.subarray(4, 8),
@@ -270,6 +270,9 @@ block script
             text,
           }
           return (await Swal.fire(args))?.isConfirmed
+        },
+        blockToSector (block = 0) {
+          return block < 128 ? block >>> 2 : 24 + (block >>> 4)
         },
         showLoading (title, text) {
           Swal.fire({

@@ -1,3 +1,5 @@
+//- trace: https://gist.github.com/taichunmin/a553033b0625b357dea85b1dfd6e390a
+
 extends /layout/default
 
 block beforehtml
@@ -49,7 +51,7 @@ block content
         .input-group.input-group-sm.mb-2.was-validated
           .input-group-prepend: span.input-group-text.justify-content-center Block
           input.form-control(type="number", min="0", max="63", required, v-model.number="h.block")
-          .input-group-append: span.input-group-text Sector {{ (h?.block ?? 0) >>> 2 }}
+          .input-group-append: span.input-group-text Sector {{ blockToSector(h?.block ?? 0) }}
         .input-group.input-group-sm.mb-2
           .input-group-prepend: span.input-group-text.justify-content-center KEY類型
           select.form-control.form-control-sm(v-model.number="h.isKb")
@@ -75,7 +77,7 @@ block content
               v-for="d in h.detects",
               :key="`${d.block}-${d.isKb}-${d.key}`",
             )
-              td(@click="btnCopy(d.block >>> 2)") {{ d.block >>> 2 }}
+              td(@click="btnCopy(blockToSector(d.block))") {{ blockToSector(d.block) }}
               td(@click="btnCopy('AB'[d.isKb])") {{ 'AB'[d.isKb] }}
               td(@click="btnCopy(d.key)") {{ d.key }}
               td(@click="btnSetTestFromDetect(d)"): a.badge.badge-primary.mr-1(href="javascript:void(0)") 填寫
@@ -84,8 +86,8 @@ block content
       .card-body
         small
           p 請先把原卡放在 PN532 上，按下「讀取卡號」來取得原卡的卡號，然後把原卡移開並把「福睿偵測卡」放到 PN532 上，按下「模擬卡號」來設定卡號。模擬完成後，請把「福睿偵測卡」拿去門禁讀卡機刷卡三次以上，然後再把「福睿偵測卡」放在 PN532 上，按下「破解金鑰」應該就可以取得金鑰了。
-          p 開發者所取得的「福睿偵測卡」硬體，能夠記錄 8 次 Sector 0 的刷卡記錄，如果已經記錄過 8 次 Sector 0 刷卡記錄，你就需要把「福睿偵測卡」放到 PN532 上，再次按下「模擬卡號」按鈕才能重新記錄。
-          p 如果沒有辦法成功使用這種方式取得卡片金鑰，代表讀卡機沒有使用金鑰讀寫 Sector 0，或是讀卡機有針對此種攻擊方式進行防範，這時候你會需要改用其他嗅探卡或是側錄讀卡機與原卡的通訊資料才能破解金鑰。
+          p 開發者所取得的「福睿偵測卡」硬體，能夠記錄 256 次讀卡記錄，如果記錄已滿，你就需要把「福睿偵測卡」放到 PN532 上，再次按下「模擬卡號」按鈕才能重新記錄。
+          p 如果沒有辦法成功使用這種方式取得卡片金鑰，代表讀卡機沒有使用金鑰讀寫，或是讀卡機有針對此種攻擊方式進行防範，這時候你會需要改用其他嗅探卡或是側錄讀卡機與原卡的通訊資料才能破解金鑰。
         .row.mx-n1.mt-2
           .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://xmfuruixin.taobao.com/") #[i.fa.fa-fw.fa-shopping-cart] 店舖頁面
           .col.px-1: a.btn.btn-block.btn-outline-secondary(target="_blank", href="https://lihi1.com/0vzx7") #[i.fa.fa-fw.fa-tag] 購買網頁
@@ -172,14 +174,6 @@ block script
               await pn532.updateRegistersWithMask([
                 { adr: 0x6303, mask: 0x80, value: 0x00 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
               ])
-              const { data: data1 } = await pn532.inCommunicateThru({ data: Packet.fromHex('AAA700') })
-              const recordLen = data1[2]
-              await pn532.inDeselect()
-              await pn532.inSelect({ tg: 1 })
-              await pn532.rfSetTimeouts()
-              await pn532.updateRegistersWithMask([
-                { adr: 0x6303, mask: 0x80, value: 0x00 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
-              ])
               await pn532.inCommunicateThru({ data: Packet.fromHex('AAA500000000000000000000000000000000') })
               await pn532.inCommunicateThru({
                 data: Packet.merge(
@@ -190,14 +184,9 @@ block script
                   new Packet(8),
                 ),
               })
-              if (recordLen > 0) {
-                await pn532.inCommunicateThru({ data: Packet.fromHex('AAA5FFFFFF00000000000000000000000000') })
-                for (let i = 1; i <= recordLen; i++) await pn532.inCommunicateThru({ data: new Packet([...Packet.fromHex('AAA600'), i]) })
-              }
+              await pn532.inCommunicateThru({ data: Packet.fromHex('AAA5FFFFFF00000000000000000000000000') })
+              for (let i = 0; i <= 255; i++) await pn532.inCommunicateThru({ data: new Packet([0xAA, 0xA6, i]) })
             } finally {
-              await pn532.updateRegistersWithMask([
-                { adr: 0x6303, mask: 0x80, value: 0x80 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
-              ])
               if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
             }
             const card = await this.pn532.$hf14a.mfSelectCard()
@@ -233,45 +222,46 @@ block script
             this.$set(this.h, 'detects', [])
             const records = []
             try {
+              const card = await this.pn532.$hf14a.mfSelectCard()
+              const blockMax = `${card.atqa.hex}-${card.sak.hex}` === '0004-08' ? 16 : 40
               await pn532.$hf14a.inListPassiveTarget()
               await pn532.inSelect({ tg: 1 })
               await pn532.rfSetTimeouts()
               await pn532.updateRegistersWithMask([
                 { adr: 0x6303, mask: 0x80, value: 0x00 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
               ])
-              const { data: data1 } = await pn532.inCommunicateThru({ data: Packet.fromHex('AAA700') })
-              const recordLen = data1[2]
-              if (recordLen < 2) throw new Error('刷卡次數不夠。請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。')
-              for (let i = 1; i <= recordLen; i++) {
-                const { data: data2 } = await pn532.inCommunicateThru({ data: new Packet([...Packet.fromHex('AAA800'), i]) })
-                records.push({
-                  uid: data2.subarray(0, 4).hex,
-                  block: data2[4],
-                  sector: data2[4] >>> 2,
-                  isKb: +(data2[5] === 0x61),
-                  nt: data2.subarray(6, 10),
-                  nr: data2.subarray(10, 14),
-                  ar: data2.subarray(14, 18),
-                })
+              for (let i = 0; i < blockMax; i++) {
+                const size = (await pn532.inCommunicateThru({ data: new Packet([0xAA, 0xA7, i]) }))?.data?.[2]
+                for (let j = 1; j < size; j++) {
+                  const data2 = (await pn532.inCommunicateThru({ data: new Packet([0xAA, 0xA8, i, j]) }))?.data
+                  records.push({
+                    uid: data2.subarray(0, 4).hex,
+                    block: data2[4],
+                    sector: this.blockToSector(data2[4]),
+                    isKb: +(data2[5] === 0x61),
+                    nt: data2.subarray(6, 10),
+                    nr: data2.subarray(10, 14),
+                    ar: data2.subarray(14, 18),
+                  })
+                }
               }
             } finally {
-              await pn532.updateRegistersWithMask([
-                { adr: 0x6303, mask: 0x80, value: 0x80 }, // PN53X_REG_CIU_RxMode, SYMBOL_RX_CRC_ENABLE, 0x80
-              ])
               if (pn532?.$adapter?.isOpen?.()) await pn532.inRelease().catch(() => {})
             }
+            if (records.length < 2) throw new Error('刷卡次數不夠。請先模擬卡號、刷卡三次以上、然後按下破解金鑰按鈕。')
             let detectLen = 0
             for (let i = 0; i < records.length; i++) {
               try {
                 const r0 = records[i]
-                const r1 = _.find(records, r => _.every(['uid', 'sector', 'isKb'], k => r0[k] === r[k]), i + 1)
+                const r1 = _.find(records, _.pick(r0, ['uid', 'sector', 'isKb']), i + 1)
                 if (!r1) continue
                 this.showLoading('正在破解...', `正在計算第 ${++detectLen} 組金鑰`)
-                this.$set(this.h, 'detects', _.unionWith([{
+                this.$set(this.h, 'detects', _.unionWith(this.h.detects, [{
                   block: r0.block,
                   isKb: r0.isKb,
                   key: this.mfkey32v2(r0.uid, r0, r1),
-                }], this.h.detects, _.isEqual))
+                }], _.isEqual))
+                await new Promise(resolve => { this.$nextTick(resolve) }) // 等待 UI 更新
               } catch (err) {
                 console.error(err)
               }
@@ -326,6 +316,9 @@ block script
             text,
           }
           return (await Swal.fire(args))?.isConfirmed
+        },
+        blockToSector (block = 0) {
+          return block < 128 ? block >>> 2 : 24 + (block >>> 4)
         },
         showLoading (title, text) {
           Swal.fire({
