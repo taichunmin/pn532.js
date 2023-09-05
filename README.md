@@ -315,6 +315,8 @@ console.log(JSON.stringify(resp6)) // {"success":[1,1,1,1,... (truncated)]}
 * [Mifare Classic 1k ev1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S50YYX_V1.pdf)
 * [Mifare Classic 4k ev1 v3.2 | NXP](https://www.nxp.com/docs/en/data-sheet/MF1S70YYX_V1.pdf)
 * [Mifare Identifcation Procedure - AN10833 | NXP](https://www.nxp.com/docs/en/application-note/AN10833.pdf)
+* [MIFARE ISO/IEC 14443 PICC selection - AN10834 | NXP](https://www.nxp.com/docs/en/application-note/AN10834.pdf)
+* [MIFARE product and handling of UIDs - AN10927 | NXP](https://www.nxp.com/docs/en/application-note/AN10927.pdf)
 * [A 2018 practical guide to hacking NFC/RFID](https://smartlockpicking.com/slides/Confidence_A_2018_Practical_Guide_To_Hacking_RFID_NFC.pdf)
 * [Magic Cards Notes](https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/magic_cards_notes.md)
 * [elechouse/PN532: NFC library for Arduino](https://github.com/elechouse/PN532)

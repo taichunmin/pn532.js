@@ -53,13 +53,18 @@ export default class Pn532WebbleAdapter {
       transform: async (pack, controller) => {
         // https://stackoverflow.com/questions/38913743/maximum-packet-length-for-bluetooth-le
         // 20 bytes are left for the attribute data
-        for (const chunk of pack.chunk(20)) controller.enqueue(chunk)
+        for (let i = 0; i < pack.length; i += 20) {
+          const buf1 = pack.subarray(i, i + 20)
+          const buf2 = new Packet(buf1.length)
+          buf2.set(buf1)
+          controller.enqueue(buf2)
+        }
       },
     })
     pn532.tx.readable.pipeTo(new WritableStream({ // no wait
       write: async chunk => {
         if (!me.charWrite) throw new Error('me.charWrite can not be null')
-        await me.charWrite.writeValueWithResponse(chunk.buffer)
+        await me.charWrite.writeValueWithoutResponse(chunk.buffer)
       },
     }, new CountQueuingStrategy({ highWaterMark: 1 })))
 
