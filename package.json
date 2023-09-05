@@ -10,7 +10,7 @@
   "name": "pn532.js",
   "type": "module",
   "unpkg": "dist/pn532.min.js",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "bugs": {
     "url": "https://github.com/taichunmin/pn532.js/issues"
   },
