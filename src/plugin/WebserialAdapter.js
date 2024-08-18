@@ -6,21 +6,7 @@ import { serial as serialPolyfill } from 'web-serial-polyfill'
  * @example
  * import Pn532WebserialAdapter from 'pn532.js/plugin/WebserialAdapter'
  */
-const WEBSERIAL_FILTERS = [
-  // http://www.linux-usb.org/usb.ids
-  // about://device-log
-  { usbVendorId: 0x0557, usbProductId: 0x2008 }, // 0557: ATEN International Co., Ltd, 2008: UC-232A Serial Port [pl2303]
-  { usbVendorId: 0x067B, usbProductId: 0x04BB }, // 067B: Prolific Technology, Inc., 04BB: PL2303 Serial (IODATA USB-RSAQ2)
-  { usbVendorId: 0x067B, usbProductId: 0x2303 }, // 067B: Prolific Technology, Inc., 2303: PL2303 Serial Port
-  { usbVendorId: 0x067B, usbProductId: 0xAAA2 }, // 067B: Prolific Technology, Inc., AAA2: PL2303 Serial Adapter (IODATA USB-RSAQ3)
-  { usbVendorId: 0x067B, usbProductId: 0xAAA3 }, // 067B: Prolific Technology, Inc., AAA3: PL2303x Serial Adapter
-  { usbVendorId: 0x1A86, usbProductId: 0x5523 }, // 1A86: QinHeng Electronics, 5523: CH341 in serial mode, usb to serial port converter
-  { usbVendorId: 0x1A86, usbProductId: 0x7522 }, // 1A86: QinHeng Electronics, 7522: CH340 serial converter
-  { usbVendorId: 0x1A86, usbProductId: 0x7523 }, // 1A86: QinHeng Electronics, 7523: CH340 serial converter
-  { usbVendorId: 0x10C4, usbProductId: 0xEA60 }, // 10C4: Silicon Labs, EA60: CP210x UART Bridge
-  { usbVendorId: 0x10C4, usbProductId: 0xEA61 }, // 10C4: Silicon Labs, EA61: CP210x UART Bridge
-  { usbVendorId: 0x10C4, usbProductId: 0xEA63 }, // 10C4: Silicon Labs, EA63: CP210x UART Bridge
-]
+
 
 /**
  * This is a web serial adapter of `Pn532`. A pn532 instance must register exactly one adapter plugin. After register to PN532 instance, this plugin will expose plugin functions under `pn532.$adapter`.
@@ -98,7 +84,7 @@ export default class Pn532WebserialAdapter {
 
         // request port
         const serial = getSerial()
-        me.port = await serial.requestPort({ filters: WEBSERIAL_FILTERS })
+        me.port = await serial.requestPort({ })
         if (!me.port) throw new Error('user canceled')
         const info = await me.port.getInfo()
         utils.logTime(`port selected, usbVendorId = ${info.usbVendorId}, usbProductId = ${info.usbProductId}`)
