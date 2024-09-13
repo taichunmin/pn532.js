@@ -9,7 +9,10 @@ const BLESERIAL_FILTERS = [
   { name: 'JDY-33-BLE' },
   { name: 'NFC-Pro-Q' },
   { name: 'NFC-PRO' },
+  { name: 'PcrReader(BLE)' },
   { name: 'PN532-BLE' },
+  { services: [0xFF00] }, // HC
+  { services: [0xFFE0] }, // HC, JDY
 ]
 
 const BLESERIAL_UUID = [
