@@ -1,4 +1,4 @@
-name: CI
+name: Build docs and npm publish
 
 on:
   workflow_dispatch:
@@ -9,33 +9,47 @@ on:
 
 permissions:
   contents: read
-  pages: write
   id-token: write
+  pages: write
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Dump GitHub context
+        env:
+          ACTION_CONTEXT: |
+            {
+              "env": ${{ toJSON(env) }},
+              "github": ${{ toJSON(github) }},
+              "inputs": ${{ toJSON(inputs) }},
+              "job": ${{ toJSON(job) }},
+              "runner": ${{ toJSON(runner) }},
+              "secrets": ${{ toJSON(secrets) }},
+              "steps": ${{ toJSON(steps) }},
+              "vars": ${{ toJSON(vars) }}
+            }
+        run: echo "$ACTION_CONTEXT" | jq .
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 18
           cache: 'yarn'
+          node-version: lts/*
+          registry-url: 'https://registry.npmjs.org'
       - name: install, lint, test, build
         run: |
+          set -ex
           yarn
           yarn lint
           yarn test --coverage
           yarn build
+          yarn publish:test
       - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        uses: coverallsapp/github-action@v2
   deploy:
     if: github.ref == 'refs/heads/master'
     needs: test
@@ -44,26 +58,53 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-      - uses: actions/setup-node@v3
+      - name: Dump GitHub context
+        env:
+          ACTION_CONTEXT: |
+            {
+              "env": ${{ toJSON(env) }},
+              "github": ${{ toJSON(github) }},
+              "inputs": ${{ toJSON(inputs) }},
+              "job": ${{ toJSON(job) }},
+              "runner": ${{ toJSON(runner) }},
+              "secrets": ${{ toJSON(secrets) }},
+              "steps": ${{ toJSON(steps) }},
+              "vars": ${{ toJSON(vars) }}
+            }
+        run: echo "$ACTION_CONTEXT" | jq .
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 18
           cache: 'yarn'
+          node-version: lts/*
+          registry-url: 'https://registry.npmjs.org'
       - name: install and build
         run: |
+          set -ex
           yarn
           yarn build
+      - uses: actions/configure-pages@v4
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
       - name: 發布至 npm
-        uses: JS-DevTools/npm-publish@v1
+        uses: JS-DevTools/npm-publish@v4
+        id: npm-publish
         with:
-          token: ${{ secrets.NPM_TOKEN }}
+          access: public
+      - name: jsDelivr Purge
+        uses: egad13/purge-jsdelivr-cache@v1
+        if: ${{ steps.npm-publish.outputs.type }}
+        with:
+          url: |
+            https://cdn.jsdelivr.net/npm/pn532.js@0
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/pn532.min.js
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/Crypto1.min.js
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/Hf14a.min.js
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/LoggerRxTx.min.js
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebbleAdapter.min.js
+            https://cdn.jsdelivr.net/npm/pn532.js@0/dist/plugin/WebserialAdapter.min.js

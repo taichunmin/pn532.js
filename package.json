@@ -114,6 +114,7 @@
     "docjs": "documentation build --config documentation.yml src/** -f html --github -o dist/docs",
     "lint": "eslint --ext .js,.pug --fix .",
     "mkcert": "mkcert -key-file ./mkcert/key.pem -cert-file ./mkcert/cert.pem -ecdsa localhost",
+    "publish:test": "npm pack --dry-run",
     "repl": "node --experimental-repl-await repl.js",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js"
   }

@@ -11,15 +11,15 @@ const BLESERIAL_FILTERS = [
   { name: 'NFC-PRO' },
   { name: 'PcrReader(BLE)' },
   { name: 'PN532-BLE' },
-  { services: [0xFF00] }, // HC
-  { services: [0xFFE0] }, // HC, JDY
+  { services: [toCanonicalUUID(0xFF00)] }, // HC
+  { services: [toCanonicalUUID(0xFFE0)] }, // HC, JDY
 ]
 
 const BLESERIAL_UUID = [
   // https://shop.mtoolstec.com/how-to-test-pn532-working-with-bluetooth-module.html
-  { serv: 0xFF00, notify: 0xFF01, write: 0xFF02 }, // HC 1
-  { serv: 0xFFE0, notify: 0xFFE1, write: 0xFFE2 }, // HC 2
-  { serv: 0xFFE0, notify: 0xFFE1, write: 0xFFE1 }, // JDY
+  { serv: toCanonicalUUID(0xFF00), notify: toCanonicalUUID(0xFF01), write: toCanonicalUUID(0xFF02) }, // HC 1
+  { serv: toCanonicalUUID(0xFFE0), notify: toCanonicalUUID(0xFFE1), write: toCanonicalUUID(0xFFE2) }, // HC 2
+  { serv: toCanonicalUUID(0xFFE0), notify: toCanonicalUUID(0xFFE1), write: toCanonicalUUID(0xFFE1) }, // JDY
 ]
 
 /**
@@ -129,10 +129,6 @@ export default class Pn532WebbleAdapter {
       }
     }
 
-    function toCanonicalUUID (uuid) {
-      return _.isInteger(uuid) ? BluetoothUUID.canonicalUUID(uuid) : uuid
-    }
-
     /**
      * Open the connection of adapter.
      * @memberof Pn532WebbleAdapter
@@ -200,4 +196,10 @@ export default class Pn532WebbleAdapter {
       isSupported,
     }
   }
+}
+
+function toCanonicalUUID (uuid) {
+  if (_.isString(uuid) && /^[0-9a-fA-F]{1,8}$/.test(uuid)) uuid = _.parseInt(uuid, 16)
+  if (_.isSafeInteger(uuid)) uuid = BluetoothUUID.canonicalUUID(uuid)
+  return _.toLower(uuid)
 }
