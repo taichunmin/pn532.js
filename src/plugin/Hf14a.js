@@ -1133,6 +1133,192 @@ export default class Pn532Hf14a {
       }
     }
 
+    /**
+     * Read a page from NTAG / MIFARE Ultralight.
+     * The MIFARE Ultralight READ command returns 4 consecutive pages (16 bytes)
+     * starting from the specified page address.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {number} args.tg Logical number of the relevant target.
+     * @returns {Promise<Packet>} Resolve with 16 bytes (4 pages starting from the target page).
+     */
+    async function mfUltralightReadPage ({ page = 0, tg = 1 } = {}) {
+      const resp = await retry(async () => {
+        try {
+          return await pn532.inDataExchange({
+            tg,
+            data: new Packet([0x30, page & 0xFF]),
+          })
+        } catch (err) {
+          if (!isAdapterOpen()) throw err
+          throw new Error(`Failed to read page ${page}`)
+        }
+      })
+      return resp?.data
+    }
+
+    /**
+     * Read a page from NTAG / MIFARE Ultralight with card selection and release.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<Packet>} Resolve with 16 bytes.
+     */
+    async function mfUltralightReadPageWrapped ({ page = 0, timeout } = {}) {
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+        return await mfUltralightReadPage({ page })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    /**
+     * Write 4 bytes data to a single page of NTAG / MIFARE Ultralight.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {Packet} args.data 4 bytes page data to write.
+     * @param {number} args.tg Logical number of the relevant target.
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWritePage ({ page = 0, data, tg = 1 } = {}) {
+      if (!Packet.isLen(data, 4)) throw new TypeError('invalid data, expected 4 bytes')
+      await retry(async () => {
+        try {
+          await pn532.inDataExchange({
+            tg,
+            data: new Packet([0xA2, page & 0xFF, ...data]),
+          })
+        } catch (err) {
+          if (!isAdapterOpen()) throw err
+          throw new Error(`Failed to write page ${page}`)
+        }
+      })
+    }
+
+    /**
+     * Write 4 bytes data to a single page of NTAG / MIFARE Ultralight with card selection and release.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {Packet} args.data 4 bytes page data to write.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWritePageWrapped ({ page = 0, data, timeout } = {}) {
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+        await mfUltralightWritePage({ page, data })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    /**
+     * Write an NDEF URI to NTAG / MIFARE Ultralight.
+     * prefixes source: https://austinblackstoneengineering.com/nfc-p2p-basics/
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {string} args.uri The URI to write (e.g. 'https://example.com').
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWriteNdefUri ({ uri = '', timeout } = {}) {
+      const prefixes = [
+        { p: 'ftp://anonymous:anonymous@', c: 0x07 },
+        { p: 'https://www.', c: 0x02 },
+        { p: 'urn:epc:tag:', c: 0x1F },
+        { p: 'urn:epc:pat:', c: 0x20 },
+        { p: 'urn:epc:raw:', c: 0x21 },
+        { p: 'http://www.', c: 0x01 },
+        { p: 'urn:epc:id:', c: 0x1E },
+        { p: 'irdaobex://', c: 0x1C },
+        { p: 'tcpobex://', c: 0x1B },
+        { p: 'btl2cap://', c: 0x19 },
+        { p: 'ftp://ftp.', c: 0x08 },
+        { p: 'btgoep://', c: 0x1A },
+        { p: 'telnet://', c: 0x10 },
+        { p: 'btspp://', c: 0x18 },
+        { p: 'urn:nfc:', c: 0x23 },
+        { p: 'urn:epc:', c: 0x22 },
+        { p: 'https://', c: 0x04 },
+        { p: 'mailto:', c: 0x06 },
+        { p: 'http://', c: 0x03 },
+        { p: 'sftp://', c: 0x0A },
+        { p: 'rtsp://', c: 0x12 },
+        { p: 'ftps://', c: 0x09 },
+        { p: 'file://', c: 0x1D },
+        { p: 'smb://', c: 0x0B },
+        { p: 'nfs://', c: 0x0C },
+        { p: 'ftp://', c: 0x0D },
+        { p: 'dav://', c: 0x0E },
+        { p: 'news:', c: 0x0F },
+        { p: 'sips:', c: 0x16 },
+        { p: 'tftp:', c: 0x17 },
+        { p: 'tel:', c: 0x05 },
+        { p: 'sip:', c: 0x15 },
+        { p: 'urn:', c: 0x13 },
+        { p: 'pop:', c: 0x14 },
+        { p: 'imap:', c: 0x11 },
+      ]
+      let prefixCode = 0x00
+      let uriStr = uri
+      for (const { p, c } of prefixes) {
+        if (uri.startsWith(p)) {
+          prefixCode = c
+          uriStr = uri.slice(p.length)
+          break
+        }
+      }
+
+      const uriBytes = Packet.fromUtf8(uriStr)
+      const payloadLength = 1 + uriBytes.length
+
+      const ndef = new Packet([
+        0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1
+        0x01, // Type Length
+        payloadLength,
+        0x55, // Type 'U'
+        prefixCode,
+        ...uriBytes,
+      ])
+
+      const tlvLen = ndef.length
+      const tlv = tlvLen < 255
+        ? new Packet([0x03, tlvLen, ...ndef, 0xFE])
+        : new Packet([0x03, 0xFF, (tlvLen >>> 8) & 0xFF, tlvLen & 0xFF, ...ndef, 0xFE])
+
+      const paddedLen = Math.ceil(tlv.length / 4) * 4
+      const data = new Packet(paddedLen)
+      data.set(tlv)
+
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+
+        for (let i = 0; i < data.length; i += 4) {
+          await mfUltralightWritePage({ page: 4 + (i / 4), data: data.subarray(i, i + 4) })
+        }
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
     return {
       inListPassiveTarget,
       mfAuthBlock,
@@ -1153,6 +1339,11 @@ export default class Pn532Hf14a {
       mfSelectCard,
       mfSetUidGen1a,
       mfSetUidGen2,
+      mfUltralightReadPage,
+      mfUltralightReadPageWrapped,
+      mfUltralightWriteNdefUri,
+      mfUltralightWritePage,
+      mfUltralightWritePageWrapped,
       mfWipeGen1a,
       mfWriteBlock,
       mfWriteBlockGen1a,

@@ -15,6 +15,11 @@ toc:
       - Pn532WebserialAdapter
   - name: Example
     children:
+      - name: NTAG / MIFARE Ultralight Toolkit
+        description: |
+          URL: <http://taichunmin.idv.tw/pn532.js/ntag-toolkit.html>
+
+          This tools can read or write data from NTAG / MIFARE Ultralight tags via Web Bluetooth or Web Serial.
       - name: M1 UID4B Writer
         description: |
           URL: <http://taichunmin.idv.tw/pn532.js/m1-uid4b-writer.html>

@@ -1,0 +1,185 @@
+extends /layout/default
+
+block beforehtml
+  - const title = 'NTAG / MIFARE Ultralight 工具'
+
+block style
+  meta(property="og:description", content=title)
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content=`${baseurl}ntag-toolkit.html`)
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+
+block content
+  #app.my-3.container.text-monospace(v-cloak)
+    h2.mb-3.text-center= title
+    
+    .card.my-2
+      .card-body
+        .form-group.mb-3
+          label 選擇 PN532 的連線方式
+          select.form-control.form-control-sm(v-model="h.adapter")
+            option(value="ble") 透過藍芽 BLE 連線 (支援 PC 及 Android)
+            option(value="usb") 透過 USB Serial 連線 (支援 PC)
+            
+        hr
+        h5.card-title 讀取 Page (Read)
+        small.text-muted NTAG 每次讀取會回傳從目標 Page 開始的 4 個 Page (共 16 bytes)。
+        .input-group.input-group-sm.my-2
+          .input-group-prepend: span.input-group-text 頁數 (Page)
+          input.form-control(v-model.number="readPage", type="number", min="0", max="255")
+          .input-group-append: button.btn.btn-success(type="button", @click="btnReadPage") 讀取
+          
+        .form-group.mt-3(v-if="readResult")
+          label 讀取結果 (Hex)
+          textarea.form-control.text-monospace(readonly, rows="4", v-model="readResult")
+          
+        hr.mt-4
+        h5.card-title 寫入 Page (Write)
+        small.text-muted 每次只能寫入單一 Page (精確 4 bytes)。警告：請確認寫入的 Page 不是唯讀的 (例如 OTP, Lock bytes)，否則可能損壞卡片。
+        .input-group.input-group-sm.my-2
+          .input-group-prepend: span.input-group-text 頁數 (Page)
+          input.form-control(v-model.number="writePage", type="number", min="0", max="255")
+        .input-group.input-group-sm.mb-2
+          .input-group-prepend: span.input-group-text 資料 (Hex)
+          input.form-control(v-model="writeData", placeholder="請輸入 8 個十六進位字元 (4 bytes)，例如: AABBCCDD", pattern="[\\dA-Fa-f]{8}")
+        button.btn.btn-danger.btn-block.btn-sm.mt-3(type="button", @click="btnWritePage") 寫入單一 Page
+
+        hr.mt-4
+        h5.card-title 寫入 NDEF 網址 (Write URL)
+        small.text-muted 將網址寫入 NTAG (從 Page 4 開始寫入 NDEF 格式)。警告：將會覆蓋卡片內現有的資料！
+        .input-group.input-group-sm.my-2
+          .input-group-prepend: span.input-group-text 網址 (URL)
+          input.form-control(v-model="writeUrl", placeholder="例如: https://example.com")
+        button.btn.btn-warning.btn-block.btn-sm.mt-3(type="button", @click="btnWriteUrl") 寫入網址
+
+block script
+  script.
+    const {
+      Pn532: { Pn532, Packet },
+      Pn532Hf14a,
+      Pn532LoggerRxTx,
+      Pn532WebbleAdapter,
+      Pn532WebserialAdapter,
+    } = window
+
+    // usb adapter
+    const pn532usb = new Pn532()
+    pn532usb.use(new Pn532WebserialAdapter())
+    pn532usb.use(new Pn532Hf14a())
+
+    // ble adapter
+    const pn532ble = new Pn532()
+    pn532ble.use(new Pn532WebbleAdapter())
+    pn532ble.use(new Pn532Hf14a())
+
+    if (new URL(location).searchParams.has('debug')) {
+      pn532usb.use(new Pn532LoggerRxTx())
+      pn532ble.use(new Pn532LoggerRxTx())
+    }
+
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        h: {
+          adapter: 'ble',
+        },
+        readPage: 0,
+        readResult: '',
+        writePage: 4,
+        writeData: '00000000',
+        writeUrl: 'https://taichunmin.idv.tw/',
+      },
+      async mounted () {
+        // 自動儲存設定
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      computed: {
+        pn532 () {
+          return this.h.adapter === 'usb' ? pn532usb : pn532ble
+        },
+      },
+      methods: {
+        async btnReadPage () {
+          try {
+            this.showLoading('正在讀取...', '請將卡片靠近讀卡機')
+            const data = await this.pn532.$hf14a.mfUltralightReadPageWrapped({ page: this.readPage })
+            // Format 16 bytes into 4 lines of 4 bytes
+            const chunks = data.chunk(4).map(chunk => chunk.hex.toUpperCase())
+            this.readResult = chunks.map((hex, i) => `Page ${this.readPage + i}: ${hex}`).join('\n')
+            await Swal.fire({ icon: 'success', title: '讀取成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '讀取失敗', text: err.message })
+          }
+        },
+        async btnWritePage () {
+          try {
+            const hexData = this.writeData.trim()
+            if (!/^[0-9A-Fa-f]{8}$/.test(hexData)) {
+              throw new Error('請輸入正確的 4 Bytes Hex 資料 (8 個字元)')
+            }
+            if (!await this.confirm(`確定要將資料寫入 Page ${this.writePage} 嗎？此操作具有破壞性！`, '寫入', '取消')) return
+            
+            this.showLoading('正在寫入...', '請將卡片靠近讀卡機')
+            const packetData = Packet.fromHex(hexData)
+            await this.pn532.$hf14a.mfUltralightWritePageWrapped({ 
+              page: this.writePage, 
+              data: packetData 
+            })
+            await Swal.fire({ icon: 'success', title: '寫入成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
+          }
+        },
+        async btnWriteUrl () {
+          try {
+            const url = this.writeUrl.trim()
+            if (!url) throw new Error('請輸入網址')
+            if (!await this.confirm(`確定要將網址寫入卡片嗎？此操作會覆蓋現有資料！`, '寫入', '取消')) return
+            
+            this.showLoading('正在寫入...', '請將卡片靠近讀卡機')
+            await this.pn532.$hf14a.mfUltralightWriteNdefUri({ uri: url })
+            await Swal.fire({ icon: 'success', title: '寫入成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
+          }
+        },
+        async confirm (text, confirmButtonText, cancelButtonText) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText,
+            confirmButtonColor: '#d33',
+            confirmButtonText,
+            focusCancel: true,
+            icon: 'warning',
+            showCancelButton: true,
+            text,
+          }
+          return (await Swal.fire(args))?.isConfirmed
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })
