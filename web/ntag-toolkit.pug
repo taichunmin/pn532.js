@@ -29,6 +29,27 @@ block content
             option(value="usb") 透過 USB Serial 連線 (支援 PC)
             
         hr
+        h5.card-title 偵測卡片 (Identify)
+        small.text-muted 用 GET_VERSION 認出卡片型號與 User Memory 範圍。認出來之後，寫入 User Memory 以外的 Page 才會跳出不可逆的警告。
+        button.btn.btn-info.btn-block.btn-sm.my-2(type="button", @click="btnGetVersion") 偵測卡片
+        table.table.table-sm.table-bordered.mt-2.mb-0(v-if="tagInfo")
+          tbody
+            tr
+              th.w-50 型號
+              td {{ tagInfo.product || `未知 (storage = 0x${tagInfo.storageSize.toString(16).toUpperCase()})` }}
+            tr
+              th User Memory
+              td(v-if="tagInfo.userMemory") {{ tagInfo.userMemory }} bytes (Page 4 ~ {{ tagInfo.lastPage }})
+              td(v-else) 未知
+            tr(v-if="tagInfo.lastPage")
+              th 不可逆區域
+              td.text-danger
+                | Page 0 ~ 3、Page {{ tagInfo.lastPage + 1 }} 之後
+                br
+                small(v-if="tagInfo.dynamicLockPage") Page {{ tagInfo.dynamicLockPage }} 是動態 Lock bytes，之後是 CFG0 / CFG1 / PWD / PACK
+                small(v-else) 這顆沒有動態 Lock bytes，Page {{ tagInfo.lastPage + 1 }} 起就是 CFG0 / CFG1 / PWD / PACK
+
+        hr.mt-4
         h5.card-title 讀取 Page (Read)
         small.text-muted NTAG 每次讀取會回傳從目標 Page 開始的 4 個 Page (共 16 bytes)。
         .input-group.input-group-sm.my-2
@@ -42,7 +63,7 @@ block content
           
         hr.mt-4
         h5.card-title 寫入 Page (Write)
-        small.text-muted 每次只能寫入單一 Page (精確 4 bytes)。警告：請確認寫入的 Page 不是唯讀的 (例如 OTP, Lock bytes)，否則可能損壞卡片。
+        small.text-muted 每次只能寫入單一 Page (精確 4 bytes)，寫完會讀回來驗證。警告：Page 0 ~ 3 與 User Memory 之後的 Page 是 OTP (Lock bytes、組態頁、密碼)，位元只能由 0 變 1，寫下去救不回來。
         .input-group.input-group-sm.my-2
           .input-group-prepend: span.input-group-text 頁數 (Page)
           input.form-control(v-model.number="writePage", type="number", min="0", max="255")
@@ -53,7 +74,7 @@ block content
 
         hr.mt-4
         h5.card-title 寫入 NDEF 網址 (Write URL)
-        small.text-muted 將網址寫入 NTAG (從 Page 4 開始寫入 NDEF 格式)。警告：將會覆蓋卡片內現有的資料！
+        small.text-muted 將網址寫入 NTAG (從 Page 4 開始寫入 NDEF 格式)。寫之前會用 GET_VERSION 確認容量、檢查 Lock bytes，寫之後會讀回來驗證，所以不會寫進 OTP 區域。警告：將會覆蓋卡片內現有的資料！
         .input-group.input-group-sm.my-2
           .input-group-prepend: span.input-group-text 網址 (URL)
           input.form-control(v-model="writeUrl", placeholder="例如: https://example.com")
@@ -92,6 +113,7 @@ block script
         },
         readPage: 0,
         readResult: '',
+        tagInfo: null,
         writePage: 4,
         writeData: '00000000',
         writeUrl: 'https://taichunmin.idv.tw/',
@@ -112,6 +134,17 @@ block script
         },
       },
       methods: {
+        async btnGetVersion () {
+          try {
+            this.showLoading('正在偵測...', '請將卡片靠近讀卡機')
+            this.tagInfo = await this.pn532.$hf14a.mfUltralightGetVersionWrapped()
+            await Swal.fire({ icon: 'success', title: '偵測成功', text: this.tagInfo.product ?? `未知型號 (storage = 0x${this.tagInfo.storageSize.toString(16).toUpperCase()})` })
+          } catch (err) {
+            console.error(err)
+            this.tagInfo = null
+            await Swal.fire({ icon: 'error', title: '偵測失敗', text: `${err.message}。不支援 GET_VERSION 的卡片 (例如原始的 MIFARE Ultralight) 會落在這裡。` })
+          }
+        },
         async btnReadPage () {
           try {
             this.showLoading('正在讀取...', '請將卡片靠近讀卡機')
@@ -131,13 +164,18 @@ block script
             if (!/^[0-9A-Fa-f]{8}$/.test(hexData)) {
               throw new Error('請輸入正確的 4 Bytes Hex 資料 (8 個字元)')
             }
-            if (!await this.confirm(`確定要將資料寫入 Page ${this.writePage} 嗎？此操作具有破壞性！`, '寫入', '取消')) return
-            
+            const danger = this.dangerOfPage(this.writePage)
+            const confirmed = danger
+              ? await this.confirmIrreversible(this.writePage, danger)
+              : await this.confirm(`確定要將資料寫入 Page ${this.writePage} 嗎？此操作具有破壞性！`, '寫入', '取消')
+            if (!confirmed) return
+
             this.showLoading('正在寫入...', '請將卡片靠近讀卡機')
             const packetData = Packet.fromHex(hexData)
-            await this.pn532.$hf14a.mfUltralightWritePageWrapped({ 
-              page: this.writePage, 
-              data: packetData 
+            await this.pn532.$hf14a.mfUltralightWritePageWrapped({
+              page: this.writePage,
+              data: packetData,
+              verify: true,
             })
             await Swal.fire({ icon: 'success', title: '寫入成功' })
           } catch (err) {
@@ -149,15 +187,41 @@ block script
           try {
             const url = this.writeUrl.trim()
             if (!url) throw new Error('請輸入網址')
-            if (!await this.confirm(`確定要將網址寫入卡片嗎？此操作會覆蓋現有資料！`, '寫入', '取消')) return
-            
+            if (!await this.confirm('確定要將網址寫入卡片嗎？此操作會覆蓋現有資料！', '寫入', '取消')) return
+
             this.showLoading('正在寫入...', '請將卡片靠近讀卡機')
             await this.pn532.$hf14a.mfUltralightWriteNdefUri({ uri: url })
-            await Swal.fire({ icon: 'success', title: '寫入成功' })
+            await Swal.fire({ icon: 'success', title: '寫入成功', text: '已讀回卡片驗證每個 Page 的內容都正確。' })
           } catch (err) {
             console.error(err)
             await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
           }
+        },
+        // 回傳這個 Page 為什麼是不可逆的，安全的話回傳 null。
+        // 沒偵測過卡片就只能用所有 Type 2 Tag 都有的 Page 4 ~ 15 當安全範圍。
+        dangerOfPage (page) {
+          if (page < 4) return 'Page 0 ~ 1 是 UID、Page 2 是靜態 Lock bytes、Page 3 是 Capability Container，全部都是 OTP (位元只能由 0 變 1)'
+          const lastPage = this.tagInfo?.lastPage
+          if (!lastPage) {
+            return page > 15 ? '還沒偵測卡片，無法確定 User Memory 到哪一頁。Page 16 之後可能已經是動態 Lock bytes 或組態頁 (OTP)，先按「偵測卡片」' : null
+          }
+          if (page <= lastPage) return null
+          if (page === this.tagInfo.dynamicLockPage) return `Page ${page} 是動態 Lock bytes，是 OTP，寫下去那塊區域就永久唯讀`
+          return `Page ${page} 已經超出 User Memory (Page 4 ~ ${lastPage})，是組態頁或密碼區 (CFG0 / CFG1 / PWD / PACK)，寫錯會讓卡片再也讀寫不了`
+        },
+        async confirmIrreversible (page, reason) {
+          const args = {
+            cancelButtonColor: '#3085d6',
+            cancelButtonText: '取消',
+            confirmButtonColor: '#d33',
+            confirmButtonText: '我知道救不回來，仍要寫入',
+            focusCancel: true,
+            html: `<p class="text-danger font-weight-bold">這個操作不可逆</p><p>${reason}。</p><p>確定要寫入 Page ${page} 嗎？</p>`,
+            icon: 'error',
+            showCancelButton: true,
+            title: '⛔ 不可逆的寫入',
+          }
+          return (await Swal.fire(args))?.isConfirmed
         },
         async confirm (text, confirmButtonText, cancelButtonText) {
           const args = {
