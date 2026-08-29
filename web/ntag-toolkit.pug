@@ -30,7 +30,7 @@ block content
             
         hr
         h5.card-title 偵測卡片 (Identify)
-        small.text-muted 用 GET_VERSION 認出卡片型號與 User Memory 範圍。認出來之後，寫入 User Memory 以外的 Page 才會跳出不可逆的警告。
+        small.text-muted 偵測卡片型號與 User Memory 範圍。
         button.btn.btn-info.btn-block.btn-sm.my-2(type="button", @click="btnGetVersion") 偵測卡片
         table.table.table-sm.table-bordered.mt-2.mb-0(v-if="tagInfo")
           tbody
