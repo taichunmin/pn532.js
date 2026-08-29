@@ -1134,6 +1134,65 @@ export default class Pn532Hf14a {
     }
 
     /**
+     * NDEF URI Record prefix abbreviations, the array index is the URI Identifier Code.
+     * Compressing a well known prefix into a single byte saves precious tag memory.
+     * @see NFC Forum URI Record Type Definition (RTD-URI)
+     */
+    const NDEF_URI_PREFIXES = [
+      '', // 0x00
+      'http://www.', // 0x01
+      'https://www.', // 0x02
+      'http://', // 0x03
+      'https://', // 0x04
+      'tel:', // 0x05
+      'mailto:', // 0x06
+      'ftp://anonymous:anonymous@', // 0x07
+      'ftp://ftp.', // 0x08
+      'ftps://', // 0x09
+      'sftp://', // 0x0A
+      'smb://', // 0x0B
+      'nfs://', // 0x0C
+      'ftp://', // 0x0D
+      'dav://', // 0x0E
+      'news:', // 0x0F
+      'telnet://', // 0x10
+      'imap:', // 0x11
+      'rtsp://', // 0x12
+      'urn:', // 0x13
+      'pop:', // 0x14
+      'sip:', // 0x15
+      'sips:', // 0x16
+      'tftp:', // 0x17
+      'btspp://', // 0x18
+      'btl2cap://', // 0x19
+      'btgoep://', // 0x1A
+      'tcpobex://', // 0x1B
+      'irdaobex://', // 0x1C
+      'file://', // 0x1D
+      'urn:epc:id:', // 0x1E
+      'urn:epc:tag:', // 0x1F
+      'urn:epc:pat:', // 0x20
+      'urn:epc:raw:', // 0x21
+      'urn:epc:', // 0x22
+      'urn:nfc:', // 0x23
+    ]
+
+    /** The first page of the user memory of NTAG / MIFARE Ultralight. */
+    const ULTRALIGHT_USER_PAGE = 4
+
+    /**
+     * The size of the NDEF data area to assume when the tag has no valid Capability Container.
+     * 48 bytes (page 4 ~ 15) is the user memory of the original MIFARE Ultralight (MF0ICU1),
+     * which every NFC Forum Type 2 tag has at least.
+     */
+    const ULTRALIGHT_FALLBACK_CAPACITY = 48
+
+    function ultralightAssertPage (page) {
+      if (!_.isSafeInteger(page) || page < 0 || page > 0xFF) throw new TypeError('invalid page, expected an integer between 0 and 255')
+      return page
+    }
+
+    /**
      * Read a page from NTAG / MIFARE Ultralight.
      * The MIFARE Ultralight READ command returns 4 consecutive pages (16 bytes)
      * starting from the specified page address.
@@ -1141,16 +1200,19 @@ export default class Pn532Hf14a {
      * @instance
      * @async
      * @param {object} args
-     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
      * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
      * @returns {Promise<Packet>} Resolve with 16 bytes (4 pages starting from the target page).
      */
-    async function mfUltralightReadPage ({ page = 0, tg = 1 } = {}) {
+    async function mfUltralightReadPage ({ page = 0, tg = 1, timeout } = {}) {
+      ultralightAssertPage(page)
       const resp = await retry(async () => {
         try {
           return await pn532.inDataExchange({
             tg,
-            data: new Packet([0x30, page & 0xFF]),
+            data: new Packet([0x30, page]),
+            timeout,
           })
         } catch (err) {
           if (!isAdapterOpen()) throw err
@@ -1166,15 +1228,16 @@ export default class Pn532Hf14a {
      * @instance
      * @async
      * @param {object} args
-     * @param {number} args.page Target page address (0x00 ~ 0xFF).
-     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
+     * @param {number} args.timeout The maxinum timeout for waiting response, applied to both card selection and the READ command.
      * @returns {Promise<Packet>} Resolve with 16 bytes.
      */
     async function mfUltralightReadPageWrapped ({ page = 0, timeout } = {}) {
+      ultralightAssertPage(page)
       try {
         const target = (await inListPassiveTarget({ timeout }))?.[0]
         if (!target) throw new Error('Failed to select card')
-        return await mfUltralightReadPage({ page })
+        return await mfUltralightReadPage({ page, timeout })
       } finally {
         await inReleaseIfOpened()
       }
@@ -1186,18 +1249,21 @@ export default class Pn532Hf14a {
      * @instance
      * @async
      * @param {object} args
-     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
      * @param {Packet} args.data 4 bytes page data to write.
      * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
      * @returns {Promise<null>} Resolve after finished.
      */
-    async function mfUltralightWritePage ({ page = 0, data, tg = 1 } = {}) {
+    async function mfUltralightWritePage ({ page = 0, data, tg = 1, timeout } = {}) {
+      ultralightAssertPage(page)
       if (!Packet.isLen(data, 4)) throw new TypeError('invalid data, expected 4 bytes')
       await retry(async () => {
         try {
           await pn532.inDataExchange({
             tg,
-            data: new Packet([0xA2, page & 0xFF, ...data]),
+            data: new Packet([0xA2, page, ...data]),
+            timeout,
           })
         } catch (err) {
           if (!isAdapterOpen()) throw err
@@ -1212,107 +1278,127 @@ export default class Pn532Hf14a {
      * @instance
      * @async
      * @param {object} args
-     * @param {number} args.page Target page address (0x00 ~ 0xFF).
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
      * @param {Packet} args.data 4 bytes page data to write.
-     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {number} args.timeout The maxinum timeout for waiting response, applied to both card selection and the WRITE command.
      * @returns {Promise<null>} Resolve after finished.
      */
     async function mfUltralightWritePageWrapped ({ page = 0, data, timeout } = {}) {
+      ultralightAssertPage(page)
       try {
         const target = (await inListPassiveTarget({ timeout }))?.[0]
         if (!target) throw new Error('Failed to select card')
-        await mfUltralightWritePage({ page, data })
+        await mfUltralightWritePage({ page, data, timeout })
       } finally {
         await inReleaseIfOpened()
       }
     }
 
     /**
-     * Write an NDEF URI to NTAG / MIFARE Ultralight.
-     * prefixes source: https://austinblackstoneengineering.com/nfc-p2p-basics/
+     * Encode an URI into the bytes that can be written to NTAG / MIFARE Ultralight starting from page 4.
+     *
+     * ```
+     * TLV:    0x03 [length] [NDEF message] 0xFE
+     * Record: [header] 0x01 [payload length] 0x55 [URI identifier code] [URI]
+     * ```
+     * @param {string} uri The URI to encode.
+     * @returns {Packet} The NDEF message wrapped in a TLV and zero padded to a multiple of 4 bytes.
+     */
+    function ultralightEncodeNdefUri (uri) {
+      if (!_.isString(uri) || uri.length < 1) throw new TypeError('invalid uri')
+
+      // Match the longest prefix instead of the first one that matches, otherwise
+      // `https://www.` would be shortened by `https://` and waste 4 bytes.
+      let prefixCode = 0x00
+      let prefixLen = 0
+      for (let i = 1; i < NDEF_URI_PREFIXES.length; i++) {
+        const prefix = NDEF_URI_PREFIXES[i]
+        if (prefix.length <= prefixLen || !_.startsWith(uri, prefix)) continue
+        prefixCode = i
+        prefixLen = prefix.length
+      }
+
+      const uriBytes = Packet.fromUtf8(uri.slice(prefixLen))
+      const payloadLen = 1 + uriBytes.length // 1 byte URI identifier code + URI
+
+      // A short record (SR = 1) only has a 1 byte payload length field. A longer payload
+      // must be encoded as a normal record (SR = 0) with a 4 bytes big-endian length,
+      // otherwise the length would silently overflow and corrupt the NDEF message.
+      const ndef = payloadLen < 0x100
+        ? new Packet([
+          0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1
+          0x01, // Type Length
+          payloadLen, // Payload Length
+          0x55, // Type 'U'
+          prefixCode,
+          ...uriBytes,
+        ])
+        : new Packet([
+          0xC1, // MB=1, ME=1, CF=0, SR=0, IL=0, TNF=1
+          0x01, // Type Length
+          (payloadLen >>> 24) & 0xFF, // Payload Length
+          (payloadLen >>> 16) & 0xFF,
+          (payloadLen >>> 8) & 0xFF,
+          payloadLen & 0xFF,
+          0x55, // Type 'U'
+          prefixCode,
+          ...uriBytes,
+        ])
+
+      // 0xFF is the escape value of the TLV length field, a length of 255 or more must be
+      // encoded in the following 2 bytes big-endian.
+      const tlv = ndef.length < 0xFF
+        ? new Packet([0x03, ndef.length, ...ndef, 0xFE])
+        : new Packet([0x03, 0xFF, (ndef.length >>> 8) & 0xFF, ndef.length & 0xFF, ...ndef, 0xFE])
+
+      const data = new Packet(Math.ceil(tlv.length / 4) * 4)
+      data.set(tlv)
+      return data
+    }
+
+    /**
+     * Read the size of the NDEF data area declared by the Capability Container (page 3).
+     * @param {object} args
+     * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<?number>} Resolve with the size in bytes, or `null` if the tag has no valid CC.
+     */
+    async function ultralightReadNdefCapacity ({ tg = 1, timeout } = {}) {
+      try {
+        const cc = (await mfUltralightReadPage({ page: 3, tg, timeout }))?.subarray(0, 4)
+        if (!Packet.isLen(cc, 4) || cc[0] !== 0xE1 || cc[1] !== 0x10) return null
+        return cc[2] * 8
+      } catch (err) {
+        if (!isAdapterOpen()) throw err
+        return null // a tag that refuses to be read has no known capacity
+      }
+    }
+
+    /**
+     * Write an NDEF URI to NTAG / MIFARE Ultralight, starting from page 4.
      * @memberof Pn532Hf14a
      * @instance
      * @async
      * @param {object} args
-     * @param {string} args.uri The URI to write (e.g. 'https://example.com').
+     * @param {string} args.uri The URI to write (e.g. `https://example.com`).
+     * @param {number} args.capacity The size in bytes of the NDEF data area of the tag. Default to the size declared by the Capability Container of the tag, or 48 bytes if the tag has no valid CC.
      * @param {number} args.timeout The maxinum timeout for waiting response.
      * @returns {Promise<null>} Resolve after finished.
      */
-    async function mfUltralightWriteNdefUri ({ uri = '', timeout } = {}) {
-      const prefixes = [
-        { p: 'ftp://anonymous:anonymous@', c: 0x07 },
-        { p: 'https://www.', c: 0x02 },
-        { p: 'urn:epc:tag:', c: 0x1F },
-        { p: 'urn:epc:pat:', c: 0x20 },
-        { p: 'urn:epc:raw:', c: 0x21 },
-        { p: 'http://www.', c: 0x01 },
-        { p: 'urn:epc:id:', c: 0x1E },
-        { p: 'irdaobex://', c: 0x1C },
-        { p: 'tcpobex://', c: 0x1B },
-        { p: 'btl2cap://', c: 0x19 },
-        { p: 'ftp://ftp.', c: 0x08 },
-        { p: 'btgoep://', c: 0x1A },
-        { p: 'telnet://', c: 0x10 },
-        { p: 'btspp://', c: 0x18 },
-        { p: 'urn:nfc:', c: 0x23 },
-        { p: 'urn:epc:', c: 0x22 },
-        { p: 'https://', c: 0x04 },
-        { p: 'mailto:', c: 0x06 },
-        { p: 'http://', c: 0x03 },
-        { p: 'sftp://', c: 0x0A },
-        { p: 'rtsp://', c: 0x12 },
-        { p: 'ftps://', c: 0x09 },
-        { p: 'file://', c: 0x1D },
-        { p: 'smb://', c: 0x0B },
-        { p: 'nfs://', c: 0x0C },
-        { p: 'ftp://', c: 0x0D },
-        { p: 'dav://', c: 0x0E },
-        { p: 'news:', c: 0x0F },
-        { p: 'sips:', c: 0x16 },
-        { p: 'tftp:', c: 0x17 },
-        { p: 'tel:', c: 0x05 },
-        { p: 'sip:', c: 0x15 },
-        { p: 'urn:', c: 0x13 },
-        { p: 'pop:', c: 0x14 },
-        { p: 'imap:', c: 0x11 },
-      ]
-      let prefixCode = 0x00
-      let uriStr = uri
-      for (const { p, c } of prefixes) {
-        if (uri.startsWith(p)) {
-          prefixCode = c
-          uriStr = uri.slice(p.length)
-          break
-        }
-      }
-
-      const uriBytes = Packet.fromUtf8(uriStr)
-      const payloadLength = 1 + uriBytes.length
-
-      const ndef = new Packet([
-        0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1
-        0x01, // Type Length
-        payloadLength,
-        0x55, // Type 'U'
-        prefixCode,
-        ...uriBytes,
-      ])
-
-      const tlvLen = ndef.length
-      const tlv = tlvLen < 255
-        ? new Packet([0x03, tlvLen, ...ndef, 0xFE])
-        : new Packet([0x03, 0xFF, (tlvLen >>> 8) & 0xFF, tlvLen & 0xFF, ...ndef, 0xFE])
-
-      const paddedLen = Math.ceil(tlv.length / 4) * 4
-      const data = new Packet(paddedLen)
-      data.set(tlv)
-
+    async function mfUltralightWriteNdefUri ({ uri = '', capacity, timeout } = {}) {
+      const data = ultralightEncodeNdefUri(uri)
       try {
         const target = (await inListPassiveTarget({ timeout }))?.[0]
         if (!target) throw new Error('Failed to select card')
 
+        // The pages right after the NDEF data area hold the dynamic lock bits and the
+        // configuration pages, both of which can brick the tag permanently. Never write
+        // more pages than the tag declares it has.
+        if (_.isNil(capacity)) capacity = await ultralightReadNdefCapacity({ timeout }) ?? ULTRALIGHT_FALLBACK_CAPACITY
+        if (data.length > capacity) throw new Error(`NDEF message is ${data.length} bytes, exceed the ${capacity} bytes NDEF data area of the tag`)
+
         for (let i = 0; i < data.length; i += 4) {
-          await mfUltralightWritePage({ page: 4 + (i / 4), data: data.subarray(i, i + 4) })
+          await mfUltralightWritePage({ page: ULTRALIGHT_USER_PAGE + (i / 4), data: data.subarray(i, i + 4), timeout })
         }
       } finally {
         await inReleaseIfOpened()
