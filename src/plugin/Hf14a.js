@@ -1496,7 +1496,7 @@ export default class Pn532Hf14a {
      * @async
      * @param {object} args
      * @param {string} args.uri The URI to write (e.g. `https://example.com`).
-     * @param {number} args.capacity User memory size in bytes. Default is from `GET_VERSION`, or 48 bytes if unsupported.
+     * @param {number} args.capacity User memory size in bytes. Default is from `GET_VERSION`, or 48 bytes if unsupported; when provided explicitly, `GET_VERSION` is skipped so dynamic lock / password checks are not performed.
      * @param {number} args.timeout The maxinum timeout for waiting response.
      * @param {boolean} args.verify Read the message back and compare it after writing.
      * @returns {Promise<null>} Resolve after finished.

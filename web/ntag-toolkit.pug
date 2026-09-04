@@ -140,8 +140,10 @@ block script
             this.tagInfo = await this.pn532.$hf14a.mfUltralightGetVersionWrapped()
             await Swal.fire({ icon: 'success', title: '偵測成功', text: this.tagInfo.product ?? `未知型號 (storage = 0x${this.tagInfo.storageSize.toString(16).toUpperCase()})` })
           } catch (err) {
-            console.error(err)
             this.tagInfo = null
+            // 使用者自己在裝置選擇視窗按取消
+            if (err.name === 'NotFoundError') { Swal.close(); return }
+            console.error(err)
             await Swal.fire({ icon: 'error', title: '偵測失敗', text: `${err.message}。可能是不支援 GET_VERSION 的卡片 (例如原始的 MIFARE Ultralight)。` })
           }
         },
@@ -165,7 +167,6 @@ block script
               throw new Error('請輸入正確的 4 Bytes Hex 資料 (8 個字元)')
             }
 
-            this.showLoading('正在確認卡片...', '請將卡片靠近讀卡機')
             await this.refreshTagInfo()
 
             const danger = this.dangerOfPage(this.writePage)
@@ -183,6 +184,7 @@ block script
             })
             await Swal.fire({ icon: 'success', title: '寫入成功' })
           } catch (err) {
+            if (err.name === 'NotFoundError') return // 使用者自己取消
             console.error(err)
             await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
           }
@@ -192,7 +194,6 @@ block script
             const url = this.writeUrl.trim()
             if (!url) throw new Error('請輸入網址')
 
-            this.showLoading('正在確認卡片...', '請將卡片靠近讀卡機')
             await this.refreshTagInfo()
 
             if (!await this.confirm('確定要將網址寫入卡片嗎？此操作會覆蓋現有資料！', '寫入', '取消')) return
@@ -201,6 +202,7 @@ block script
             await this.pn532.$hf14a.mfUltralightWriteNdefUri({ uri: url })
             await Swal.fire({ icon: 'success', title: '寫入成功', text: '已讀回卡片驗證每個 Page 的內容都正確。' })
           } catch (err) {
+            if (err.name === 'NotFoundError') return // 使用者自己取消，這裡還沒開過任何 Swal
             console.error(err)
             await Swal.fire({ icon: 'error', title: '寫入失敗', text: err.message })
           }
@@ -211,8 +213,9 @@ block script
           try {
             this.tagInfo = await this.pn532.$hf14a.mfUltralightGetVersionWrapped()
           } catch (err) {
-            console.error(err)
             this.tagInfo = null
+            if (err.name === 'NotFoundError') throw err
+            console.error(err)
           }
         },
         // 回傳這個 Page 為什麼是不可逆的，安全的話回傳 null。
