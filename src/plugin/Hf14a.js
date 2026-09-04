@@ -1133,6 +1133,408 @@ export default class Pn532Hf14a {
       }
     }
 
+    /** NDEF URI Record prefixes, array index is the URI Identifier Code. */
+    const NDEF_URI_PREFIXES = [
+      '', // 0x00
+      'http://www.', // 0x01
+      'https://www.', // 0x02
+      'http://', // 0x03
+      'https://', // 0x04
+      'tel:', // 0x05
+      'mailto:', // 0x06
+      'ftp://anonymous:anonymous@', // 0x07
+      'ftp://ftp.', // 0x08
+      'ftps://', // 0x09
+      'sftp://', // 0x0A
+      'smb://', // 0x0B
+      'nfs://', // 0x0C
+      'ftp://', // 0x0D
+      'dav://', // 0x0E
+      'news:', // 0x0F
+      'telnet://', // 0x10
+      'imap:', // 0x11
+      'rtsp://', // 0x12
+      'urn:', // 0x13
+      'pop:', // 0x14
+      'sip:', // 0x15
+      'sips:', // 0x16
+      'tftp:', // 0x17
+      'btspp://', // 0x18
+      'btl2cap://', // 0x19
+      'btgoep://', // 0x1A
+      'tcpobex://', // 0x1B
+      'irdaobex://', // 0x1C
+      'file://', // 0x1D
+      'urn:epc:id:', // 0x1E
+      'urn:epc:tag:', // 0x1F
+      'urn:epc:pat:', // 0x20
+      'urn:epc:raw:', // 0x21
+      'urn:epc:', // 0x22
+      'urn:nfc:', // 0x23
+    ]
+
+    /** The first page of the user memory of NTAG / MIFARE Ultralight. */
+    const ULTRALIGHT_USER_PAGE = 4
+
+    /**
+     * Tag layout by GET_VERSION's product type byte (0x03/0x04) then storage size byte,
+     * needed because storage size alone is ambiguous (NTAG212 and MF0UL21 both 0x0E).
+     * Unlisted products fall back to `ULTRALIGHT_FALLBACK_CAPACITY`.
+     * dynamicLockPage is from each product's NDEF Lock Control TLV, verified on hardware.
+     * @see https://github.com/adafruit/Adafruit-PN532/issues/34
+     */
+    const ULTRALIGHT_PRODUCTS = {
+      0x03: { // MIFARE Ultralight EV1
+        0x0E: { product: 'MIFARE Ultralight EV1 (MF0UL21)', userMemory: 128, dynamicLockPage: 36 },
+      },
+      0x04: { // NTAG
+        0x0E: { product: 'NTAG212', userMemory: 128, dynamicLockPage: 36 },
+        0x0F: { product: 'NTAG213', userMemory: 144, dynamicLockPage: 40 },
+        0x11: { product: 'NTAG215', userMemory: 504, dynamicLockPage: 130 },
+        0x13: { product: 'NTAG216', userMemory: 888, dynamicLockPage: 226 },
+      },
+    }
+
+    /**
+     * Fallback user memory size for a tag not in `ULTRALIGHT_PRODUCTS`: page 4 ~ 15,
+     * data area on every NFC Forum Type 2 tag. Pass `capacity` to use more.
+     */
+    const ULTRALIGHT_FALLBACK_CAPACITY = 48
+
+    function ultralightAssertPage (page) {
+      if (!_.isSafeInteger(page) || page < 0 || page > 0xFF) throw new TypeError('invalid page, expected an integer between 0 and 255')
+      return page
+    }
+
+    /**
+     * Read 4 consecutive pages (16 bytes) from NTAG / MIFARE Ultralight, starting from `page`.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
+     * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<Packet>} Resolve with 16 bytes (4 pages starting from the target page).
+     */
+    async function mfUltralightReadPage ({ page = 0, tg = 1, timeout } = {}) {
+      ultralightAssertPage(page)
+      const resp = await retry(async () => {
+        try {
+          return await pn532.inDataExchange({
+            tg,
+            data: new Packet([0x30, page]),
+            timeout,
+          })
+        } catch (err) {
+          if (!isAdapterOpen()) throw err
+          throw new Error(`Failed to read page ${page}`)
+        }
+      })
+      return resp?.data
+    }
+
+    /**
+     * Read a page from NTAG / MIFARE Ultralight with card selection and release.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<Packet>} Resolve with 16 bytes.
+     */
+    async function mfUltralightReadPageWrapped ({ page = 0, timeout } = {}) {
+      ultralightAssertPage(page)
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+        return await mfUltralightReadPage({ page, timeout })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    /**
+     * Write 4 bytes data to a single page of NTAG / MIFARE Ultralight.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
+     * @param {Packet} args.data 4 bytes page data to write.
+     * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {boolean} args.verify Read the page back and compare it (WRITE is only acknowledged, never echoed).
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWritePage ({ page = 0, data, tg = 1, timeout, verify = false } = {}) {
+      ultralightAssertPage(page)
+      if (!Packet.isLen(data, 4)) throw new TypeError('invalid data, expected 4 bytes')
+      await retry(async () => {
+        try {
+          await pn532.inDataExchange({
+            tg,
+            data: new Packet([0xA2, page, ...data]),
+            timeout,
+          })
+        } catch (err) {
+          if (!isAdapterOpen()) throw err
+          throw new Error(`Failed to write page ${page}`)
+        }
+      })
+      if (verify) await ultralightVerifyPages({ page, data, tg, timeout })
+    }
+
+    /**
+     * Read pages back and compare them with the data that should have been written.
+     * @param {object} args
+     * @param {number} args.page The first page to compare.
+     * @param {Packet} args.data The data that should have been written, a multiple of 4 bytes.
+     * @param {number} args.tg Logical number of the relevant target.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<null>} Resolve if every byte matches.
+     */
+    async function ultralightVerifyPages ({ page = 0, data, tg = 1, timeout } = {}) {
+      for (let i = 0; i < data.length; i += 16) { // one READ returns 4 pages
+        const expected = data.subarray(i, i + 16)
+        const actual = (await mfUltralightReadPage({ page: page + (i / 4), tg, timeout }))?.subarray(0, expected.length)
+        if (!Packet.isLen(actual, expected.length) || actual.hex !== expected.hex) {
+          throw new Error(`Failed to verify page ${page + (i / 4)}, expected ${expected.hex} but read ${actual?.hex}`)
+        }
+      }
+    }
+
+    /**
+     * Write 4 bytes data to a single page of NTAG / MIFARE Ultralight with card selection and release.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.page Target page address (`0x00` ~ `0xFF`).
+     * @param {Packet} args.data 4 bytes page data to write.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {boolean} args.verify Read the page back and compare it after writing.
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWritePageWrapped ({ page = 0, data, timeout, verify = false } = {}) {
+      ultralightAssertPage(page)
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+        await mfUltralightWritePage({ page, data, timeout, verify })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    /**
+     * Encode an URI into the bytes that can be written to NTAG / MIFARE Ultralight starting from page 4.
+     *
+     * ```
+     * TLV:    0x03 [length] [NDEF message] 0xFE
+     * Record: [header] 0x01 [payload length] 0x55 [URI identifier code] [URI]
+     * ```
+     * @param {string} uri The URI to encode.
+     * @returns {Packet} The NDEF message wrapped in a TLV and zero padded to a multiple of 4 bytes.
+     */
+    function ultralightEncodeNdefUri (uri) {
+      if (!_.isString(uri) || uri.length < 1) throw new TypeError('invalid uri')
+
+      // longest matching prefix, otherwise `https://www.` loses 4 bytes to `https://`
+      let prefixCode = 0x00
+      let prefixLen = 0
+      for (let i = 1; i < NDEF_URI_PREFIXES.length; i++) {
+        const prefix = NDEF_URI_PREFIXES[i]
+        if (prefix.length <= prefixLen || !_.startsWith(uri, prefix)) continue
+        prefixCode = i
+        prefixLen = prefix.length
+      }
+
+      const uriBytes = Packet.fromUtf8(uri.slice(prefixLen))
+      const payloadLen = 1 + uriBytes.length // 1 byte URI identifier code + URI
+
+      // SR=1's 1 byte length field overflows above 255; use SR=0 with a 4 byte length instead
+      const ndef = payloadLen < 0x100
+        ? new Packet([
+          0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1
+          0x01, // Type Length
+          payloadLen, // Payload Length
+          0x55, // Type 'U'
+          prefixCode,
+          ...uriBytes,
+        ])
+        : new Packet([
+          0xC1, // MB=1, ME=1, CF=0, SR=0, IL=0, TNF=1
+          0x01, // Type Length
+          (payloadLen >>> 24) & 0xFF, // Payload Length
+          (payloadLen >>> 16) & 0xFF,
+          (payloadLen >>> 8) & 0xFF,
+          payloadLen & 0xFF,
+          0x55, // Type 'U'
+          prefixCode,
+          ...uriBytes,
+        ])
+
+      // length >= 255 needs the 2 byte big-endian long form, flagged by 0xFF
+      const tlv = ndef.length < 0xFF
+        ? new Packet([0x03, ndef.length, ...ndef, 0xFE])
+        : new Packet([0x03, 0xFF, (ndef.length >>> 8) & 0xFF, ndef.length & 0xFF, ...ndef, 0xFE])
+
+      const data = new Packet(Math.ceil(tlv.length / 4) * 4)
+      data.set(tlv)
+      return data
+    }
+
+    /**
+     * @typedef {object} Pn532Hf14a~UltralightVersion
+     * @property {Packet} pack Raw 8 bytes of the `GET_VERSION` response.
+     * @property {number} vendorId `0x04` for NXP.
+     * @property {number} productType `0x03` for MIFARE Ultralight, `0x04` for NTAG.
+     * @property {number} productSubtype
+     * @property {number} majorVersion
+     * @property {number} minorVersion
+     * @property {number} storageSize Raw storage size byte, index into `ULTRALIGHT_PRODUCTS`.
+     * @property {number} protocolType `0x03` for ISO/IEC 14443-3.
+     * @property {?string} product Product name, `null` if unknown.
+     * @property {?number} userMemory User memory size in bytes, `null` if unknown.
+     * @property {?number} lastPage Last page of the user memory, `null` if unknown.
+     * @property {?number} dynamicLockPage Page holding the dynamic lock bits, `null` if unknown or none.
+     */
+
+    /**
+     * Identify a NTAG / MIFARE Ultralight tag with `GET_VERSION`, sent through
+     * `InCommunicateThru` (not a MIFARE Classic command). An unsupported tag NAKs and halts,
+     * reselect before continuing.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<Pn532Hf14a~UltralightVersion>} Resolve with the parsed version of the tag.
+     */
+    async function mfUltralightGetVersion ({ timeout } = {}) {
+      const { data: pack } = await pn532.inCommunicateThru({ data: new Packet([0x60]), timeout })
+      // 00 04 04 02 01 00 0F 03 = NTAG213
+      if (!Packet.isLen(pack, 8)) throw new Error(`Failed to get version, expected 8 bytes but got ${pack?.length}`)
+      const [productType, storageSize] = [pack[2], pack[6]]
+      const { product = null, userMemory = null, dynamicLockPage = null } = ULTRALIGHT_PRODUCTS[productType]?.[storageSize] ?? {}
+      return {
+        pack,
+        vendorId: pack[1],
+        productType,
+        productSubtype: pack[3],
+        majorVersion: pack[4],
+        minorVersion: pack[5],
+        storageSize,
+        protocolType: pack[7],
+        product,
+        userMemory,
+        lastPage: _.isNil(userMemory) ? null : ULTRALIGHT_USER_PAGE - 1 + (userMemory / 4),
+        dynamicLockPage,
+      }
+    }
+
+    /**
+     * Identify a NTAG / MIFARE Ultralight tag with card selection and release.
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<Pn532Hf14a~UltralightVersion>} Resolve with the parsed version of the tag.
+     */
+    async function mfUltralightGetVersionWrapped ({ timeout } = {}) {
+      try {
+        const target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+        return await mfUltralightGetVersion({ timeout })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
+    /**
+     * Throw if a page about to be written is lock-bit protected or password protected.
+     * @param {object} args
+     * @param {number} args.lastWritePage The last page that is going to be written.
+     * @param {?number} args.dynamicLockPage Dynamic lock page from `GET_VERSION`; `null` skips the CFG0 / CFG1 check.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @returns {Promise<null>} Resolve if every page that is about to be written can be written.
+     */
+    async function ultralightAssertWritable ({ lastWritePage, dynamicLockPage, timeout } = {}) {
+      // page 2 = [BCC1, Internal, LOCK0, LOCK1]; LOCK0 bit4~7 -> page 4~7, LOCK1 -> page 8~15
+      const staticLock = (await mfUltralightReadPage({ page: 2, timeout }))?.subarray(2, 4)
+      if (!Packet.isLen(staticLock, 2)) throw new Error('Failed to read the static lock bytes')
+      if ((staticLock[0] & 0xF0) !== 0 || staticLock[1] !== 0) {
+        throw new Error(`Some of page 4 ~ 15 are locked by the static lock bytes ${staticLock.hex}, they are one time programmable and can not be unlocked`)
+      }
+      if (_.isNil(dynamicLockPage)) return
+
+      const cfg = await mfUltralightReadPage({ page: dynamicLockPage, timeout }) // + CFG0, CFG1, PWD
+      if (!Packet.isLen(cfg, 16)) throw new Error('Failed to read the configuration pages')
+
+      const dynamicLock = cfg.subarray(0, 3)
+      if (lastWritePage > 15 && dynamicLock.hex !== '000000') {
+        throw new Error(`Some of page 16 ~ ${dynamicLockPage - 1} are locked by the dynamic lock bytes ${dynamicLock.hex}, they are one time programmable and can not be unlocked`)
+      }
+
+      // CFG0=[MIRROR,RFUI,MIRROR_PAGE,AUTH0], CFG1=[ACCESS,RFUI,RFUI,RFUI], ACCESS bit7=PROT
+      const auth0 = cfg[7]
+      if (auth0 <= lastWritePage) {
+        const scope = (cfg[8] & 0x80) !== 0 ? 'reading and writing' : 'writing'
+        throw new Error(`The tag needs a password for ${scope} from page ${auth0} (AUTH0 = ${cfg.subarray(7, 8).hex}), authenticate with PWD_AUTH before writing`)
+      }
+    }
+
+    /**
+     * Write an NDEF URI to NTAG / MIFARE Ultralight, starting from page 4. Bounded by the
+     * tag's physical user memory, not the smaller size the Capability Container declares
+     * (pass `capacity` to honour that instead).
+     * @memberof Pn532Hf14a
+     * @instance
+     * @async
+     * @param {object} args
+     * @param {string} args.uri The URI to write (e.g. `https://example.com`).
+     * @param {number} args.capacity User memory size in bytes. Default is from `GET_VERSION`, or 48 bytes if unsupported; when provided explicitly, `GET_VERSION` is skipped so dynamic lock / password checks are not performed.
+     * @param {number} args.timeout The maxinum timeout for waiting response.
+     * @param {boolean} args.verify Read the message back and compare it after writing.
+     * @returns {Promise<null>} Resolve after finished.
+     */
+    async function mfUltralightWriteNdefUri ({ uri = '', capacity, timeout, verify = true } = {}) {
+      const data = ultralightEncodeNdefUri(uri)
+      try {
+        let target = (await inListPassiveTarget({ timeout }))?.[0]
+        if (!target) throw new Error('Failed to select card')
+
+        let dynamicLockPage = null
+        if (_.isNil(capacity)) {
+          const version = await mfUltralightGetVersion({ timeout }).catch(err => {
+            if (!isAdapterOpen()) throw err
+            return null
+          })
+          ;({ userMemory: capacity = null, dynamicLockPage } = version ?? {})
+          if (_.isNil(capacity)) { // NAK of an unsupported GET_VERSION also halts the tag
+            capacity = ULTRALIGHT_FALLBACK_CAPACITY
+            await inReleaseIfOpened()
+            target = (await inListPassiveTarget({ timeout }))?.[0]
+            if (!target) throw new Error('Failed to select card')
+          }
+        }
+        if (data.length > capacity) throw new Error(`NDEF message is ${data.length} bytes, exceed the ${capacity} bytes user memory of the tag`)
+
+        const lastWritePage = ULTRALIGHT_USER_PAGE - 1 + (data.length / 4)
+        await ultralightAssertWritable({ lastWritePage, dynamicLockPage, timeout })
+
+        for (let i = 0; i < data.length; i += 4) {
+          await mfUltralightWritePage({ page: ULTRALIGHT_USER_PAGE + (i / 4), data: data.subarray(i, i + 4), timeout })
+        }
+        if (verify) await ultralightVerifyPages({ page: ULTRALIGHT_USER_PAGE, data, timeout })
+      } finally {
+        await inReleaseIfOpened()
+      }
+    }
+
     return {
       inListPassiveTarget,
       mfAuthBlock,
@@ -1153,6 +1555,13 @@ export default class Pn532Hf14a {
       mfSelectCard,
       mfSetUidGen1a,
       mfSetUidGen2,
+      mfUltralightGetVersion,
+      mfUltralightGetVersionWrapped,
+      mfUltralightReadPage,
+      mfUltralightReadPageWrapped,
+      mfUltralightWriteNdefUri,
+      mfUltralightWritePage,
+      mfUltralightWritePageWrapped,
       mfWipeGen1a,
       mfWriteBlock,
       mfWriteBlockGen1a,
